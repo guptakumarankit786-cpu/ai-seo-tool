@@ -1,6 +1,7 @@
 from datetime import date, datetime
 
 from sqlalchemy import (
+    Boolean,
     Date,
     DateTime,
     Float,
@@ -122,3 +123,48 @@ class GscPageMetric(Base):
     impressions: Mapped[int] = mapped_column(Integer)
     ctr: Mapped[float] = mapped_column(Float)
     position: Mapped[float] = mapped_column(Float)
+
+
+class GscInspectionRun(Base):
+    """One pass of URL discovery + URL Inspection for a property."""
+
+    __tablename__ = "gsc_inspection_runs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    property_id: Mapped[int] = mapped_column(ForeignKey("gsc_properties.id", ondelete="CASCADE"), index=True)
+    status: Mapped[str] = mapped_column(String(16))  # running | success | partial | failed
+    urls_known: Mapped[int] = mapped_column(Integer, default=0)
+    urls_queued: Mapped[int] = mapped_column(Integer, default=0)
+    urls_inspected: Mapped[int] = mapped_column(Integer, default=0)
+    urls_failed: Mapped[int] = mapped_column(Integer, default=0)
+    quota_exhausted: Mapped[bool] = mapped_column(Boolean, default=False)
+    error: Mapped[str | None] = mapped_column(Text)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class GscUrlInspection(Base):
+    """Latest URL Inspection result for one URL known to belong to a property."""
+
+    __tablename__ = "gsc_url_inspections"
+    __table_args__ = (
+        UniqueConstraint("property_id", "url"),
+        Index("ix_gsc_url_inspections_property_state", "property_id", "coverage_state"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    property_id: Mapped[int] = mapped_column(ForeignKey("gsc_properties.id", ondelete="CASCADE"))
+    url: Mapped[str] = mapped_column(Text)
+    in_sitemap: Mapped[bool] = mapped_column(Boolean, default=False)
+    in_search: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Null until inspected.
+    coverage_state: Mapped[str | None] = mapped_column(String(255))
+    verdict: Mapped[str | None] = mapped_column(String(32))
+    indexing_state: Mapped[str | None] = mapped_column(String(64))
+    robots_txt_state: Mapped[str | None] = mapped_column(String(64))
+    page_fetch_state: Mapped[str | None] = mapped_column(String(64))
+    google_canonical: Mapped[str | None] = mapped_column(Text)
+    user_canonical: Mapped[str | None] = mapped_column(Text)
+    last_crawl_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    inspected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    error: Mapped[str | None] = mapped_column(Text)

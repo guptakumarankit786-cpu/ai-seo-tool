@@ -36,6 +36,8 @@ docker compose exec backend python -m pytest -q
 | Feature | Status |
 | --- | --- |
 | Google Search Console connection (OAuth, property list, 90-day sync, dashboard) | ✅ |
+| Indexing — "Why pages aren't indexed" via URL Inspection (sitemaps + search pages, 2,000/day quota) | ✅ |
+| Indexing — upload Search Console's Page indexing export | ⏳ Next |
 
 ## Branches
 

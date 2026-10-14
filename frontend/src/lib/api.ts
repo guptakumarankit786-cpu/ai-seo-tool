@@ -49,6 +49,46 @@ export type Summary = {
 
 export type DimensionRow = Totals & { key: string };
 
+export type InspectionRun = {
+  id: number;
+  status: "running" | "success" | "partial" | "failed";
+  urls_known: number;
+  urls_queued: number;
+  urls_inspected: number;
+  urls_failed: number;
+  quota_exhausted: boolean;
+  error: string | null;
+  started_at: string;
+  finished_at: string | null;
+};
+
+export type IndexingSummary = {
+  latest_run: InspectionRun | null;
+  known: number;
+  inspected: number;
+  indexed: number;
+  not_indexed: number;
+  daily_limit: number;
+  used_last_24h: number;
+  last_inspected_at: string | null;
+  reasons: { reason: string; pages: number }[];
+};
+
+export type InspectedPage = {
+  url: string;
+  coverage_state: string | null;
+  verdict: string | null;
+  indexing_state: string | null;
+  robots_txt_state: string | null;
+  page_fetch_state: string | null;
+  google_canonical: string | null;
+  user_canonical: string | null;
+  last_crawl_time: string | null;
+  inspected_at: string | null;
+  in_sitemap: boolean;
+  in_search: boolean;
+};
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     ...init,
@@ -86,6 +126,13 @@ export const api = {
     request<DimensionRow[]>(`/api/gsc/properties/${id}/queries?days=${days}&limit=${limit}`),
   pages: (id: number, days: number, limit = 50) =>
     request<DimensionRow[]>(`/api/gsc/properties/${id}/pages?days=${days}&limit=${limit}`),
+  indexing: (id: number) => request<IndexingSummary>(`/api/gsc/properties/${id}/indexing`),
+  startInspection: (id: number) =>
+    request<InspectionRun>(`/api/gsc/properties/${id}/indexing`, { method: "POST" }),
+  inspectedPages: (id: number, reason: string, limit = 100, offset = 0) =>
+    request<{ total: number; items: InspectedPage[] }>(
+      `/api/gsc/properties/${id}/indexing/pages?reason=${encodeURIComponent(reason)}&limit=${limit}&offset=${offset}`,
+    ),
 };
 
 export const fmt = {

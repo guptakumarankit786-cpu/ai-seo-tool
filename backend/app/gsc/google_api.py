@@ -15,6 +15,7 @@ TOKEN_URL = "https://oauth2.googleapis.com/token"
 REVOKE_URL = "https://oauth2.googleapis.com/revoke"
 USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo"
 GSC_BASE = "https://www.googleapis.com/webmasters/v3"
+INSPECT_URL = "https://searchconsole.googleapis.com/v1/urlInspection/index:inspect"
 
 SCOPES = [
     "openid",
@@ -30,7 +31,13 @@ class GoogleAPIError(Exception):
     pass
 
 
+class QuotaExceeded(GoogleAPIError):
+    """Google returned 429: the daily/minute URL Inspection quota is used up."""
+
+
 def _raise_for_status(resp: httpx.Response) -> None:
+    if resp.status_code == 429:
+        raise QuotaExceeded(f"429 from {resp.request.url.host}: quota exceeded")
     if resp.is_error:
         raise GoogleAPIError(f"{resp.status_code} from {resp.request.url.host}: {resp.text[:500]}")
 
@@ -141,3 +148,25 @@ def search_analytics(
             if len(batch) < ROW_LIMIT:
                 return rows
             start_row += ROW_LIMIT
+
+
+def list_sitemaps(access_token: str, site_url: str) -> list[dict]:
+    resp = httpx.get(
+        f"{GSC_BASE}/sites/{quote(site_url, safe='')}/sitemaps",
+        headers={"Authorization": f"Bearer {access_token}"},
+        timeout=60,
+    )
+    _raise_for_status(resp)
+    return resp.json().get("sitemap", [])
+
+
+def inspect_url(access_token: str, site_url: str, url: str) -> dict:
+    """Return the indexStatusResult for one URL (coverageState, verdict, canonicals, ...)."""
+    resp = httpx.post(
+        INSPECT_URL,
+        headers={"Authorization": f"Bearer {access_token}"},
+        json={"inspectionUrl": url, "siteUrl": site_url},
+        timeout=120,
+    )
+    _raise_for_status(resp)
+    return resp.json().get("inspectionResult", {}).get("indexStatusResult", {})

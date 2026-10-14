@@ -11,3 +11,11 @@ Ideas captured for later. Nothing here is implemented unless marked ✅.
 | 3 | **Automatic pulls** — the app syncs from GSC on its own on a schedule (e.g. daily, last few days only), building history beyond 16 months with no manual clicks. | 💡 Later |
 
 _Added 2026-10-15._
+
+## Indexing — "Why pages aren't indexed"
+
+| # | Idea | Status |
+|---|------|--------|
+| 4 | **Worth fixing vs. waste of time** — for each non-indexed reason (and its pages), suggest whether it's worth fixing or safe to ignore (e.g. "Page with redirect" or "Alternate page with proper canonical" are usually fine; "Crawled – currently not indexed" on money pages is worth fixing). | 💡 Later |
+
+_Added 2026-10-15._

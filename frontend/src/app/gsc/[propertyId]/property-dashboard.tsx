@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { use, useCallback, useEffect, useState } from "react";
+import { PropertyTabs } from "@/components/property-tabs";
 import { Badge, Banner, Button, Card } from "@/components/ui";
 import { useSync } from "@/components/use-sync";
 import {
@@ -83,6 +84,8 @@ export function PropertyDashboard({ params }: { params: Promise<{ propertyId: st
           <SyncControl property={property} onDone={load} />
         </div>
       </header>
+
+      <PropertyTabs propertyId={id} active="performance" />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Kpi label="Clicks" metric="clicks" totals={summary.totals} prev={summary.previous_totals} />
