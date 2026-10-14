@@ -155,18 +155,22 @@ function PropertyRow({ property, onChange }: { property: Property; onChange: () 
         </p>
         {error && <p className="mt-0.5 text-xs text-negative">{error}</p>}
       </div>
-      <div className="flex shrink-0 gap-2">
+      <div className="flex shrink-0 flex-wrap gap-2">
         <Button variant="secondary" disabled={running} onClick={() => start(90)}>
           {running ? "Syncing…" : property.last_synced_at ? "Re-sync 90 days" : "Sync 90 days"}
         </Button>
-        {property.last_synced_at && (
-          <Link
-            href={`/gsc/${property.id}`}
-            className="inline-flex items-center rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
-          >
-            Open
-          </Link>
-        )}
+        <Link
+          href={`/gsc/${property.id}`}
+          className="inline-flex items-center rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium hover:bg-accent-soft"
+        >
+          Performance
+        </Link>
+        <Link
+          href={`/gsc/${property.id}/indexing`}
+          className="inline-flex items-center rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium hover:bg-accent-soft"
+        >
+          Indexing
+        </Link>
       </div>
     </li>
   );
