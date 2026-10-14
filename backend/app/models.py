@@ -1,0 +1,124 @@
+from datetime import date, datetime
+
+from sqlalchemy import (
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.db import Base
+
+
+class OAuthState(Base):
+    """Short-lived CSRF state for an in-flight OAuth redirect."""
+
+    __tablename__ = "oauth_states"
+
+    state: Mapped[str] = mapped_column(String(64), primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class GoogleConnection(Base):
+    """A Google account the user has authorised for Search Console access."""
+
+    __tablename__ = "google_connections"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email: Mapped[str] = mapped_column(String(320), unique=True)
+    scopes: Mapped[str] = mapped_column(Text)
+    refresh_token_enc: Mapped[str] = mapped_column(Text)
+    access_token_enc: Mapped[str | None] = mapped_column(Text)
+    access_token_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    properties: Mapped[list["GscProperty"]] = relationship(
+        back_populates="connection", cascade="all, delete-orphan"
+    )
+
+
+class GscProperty(Base):
+    """A Search Console property (domain or URL-prefix) visible to a connection."""
+
+    __tablename__ = "gsc_properties"
+    __table_args__ = (UniqueConstraint("connection_id", "site_url"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    connection_id: Mapped[int] = mapped_column(ForeignKey("google_connections.id", ondelete="CASCADE"))
+    site_url: Mapped[str] = mapped_column(String(2048))
+    permission_level: Mapped[str] = mapped_column(String(64))
+    last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    connection: Mapped[GoogleConnection] = relationship(back_populates="properties")
+
+
+class GscSyncRun(Base):
+    __tablename__ = "gsc_sync_runs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    property_id: Mapped[int] = mapped_column(ForeignKey("gsc_properties.id", ondelete="CASCADE"), index=True)
+    status: Mapped[str] = mapped_column(String(16))  # running | success | failed
+    start_date: Mapped[date] = mapped_column(Date)
+    end_date: Mapped[date] = mapped_column(Date)
+    rows_written: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[str | None] = mapped_column(Text)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class GscDailyMetric(Base):
+    """Site-level totals per day."""
+
+    __tablename__ = "gsc_daily_metrics"
+
+    property_id: Mapped[int] = mapped_column(
+        ForeignKey("gsc_properties.id", ondelete="CASCADE"), primary_key=True
+    )
+    date: Mapped[date] = mapped_column(Date, primary_key=True)
+    clicks: Mapped[int] = mapped_column(Integer)
+    impressions: Mapped[int] = mapped_column(Integer)
+    ctr: Mapped[float] = mapped_column(Float)
+    position: Mapped[float] = mapped_column(Float)
+
+
+class GscQueryMetric(Base):
+    """Per-day, per-query metrics."""
+
+    __tablename__ = "gsc_query_metrics"
+    __table_args__ = (Index("ix_gsc_query_metrics_property_date", "property_id", "date"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    property_id: Mapped[int] = mapped_column(ForeignKey("gsc_properties.id", ondelete="CASCADE"))
+    date: Mapped[date] = mapped_column(Date)
+    query: Mapped[str] = mapped_column(Text)
+    clicks: Mapped[int] = mapped_column(Integer)
+    impressions: Mapped[int] = mapped_column(Integer)
+    ctr: Mapped[float] = mapped_column(Float)
+    position: Mapped[float] = mapped_column(Float)
+
+
+class GscPageMetric(Base):
+    """Per-day, per-page metrics."""
+
+    __tablename__ = "gsc_page_metrics"
+    __table_args__ = (Index("ix_gsc_page_metrics_property_date", "property_id", "date"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    property_id: Mapped[int] = mapped_column(ForeignKey("gsc_properties.id", ondelete="CASCADE"))
+    date: Mapped[date] = mapped_column(Date)
+    page: Mapped[str] = mapped_column(Text)
+    clicks: Mapped[int] = mapped_column(Integer)
+    impressions: Mapped[int] = mapped_column(Integer)
+    ctr: Mapped[float] = mapped_column(Float)
+    position: Mapped[float] = mapped_column(Float)
