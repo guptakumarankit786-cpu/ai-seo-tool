@@ -168,3 +168,47 @@ class GscUrlInspection(Base):
     last_crawl_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     inspected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     error: Mapped[str | None] = mapped_column(Text)
+
+
+class GscIndexingExport(Base):
+    """An uploaded Search Console "Page indexing" export.
+
+    kind="overview": the main report (reasons table + chart totals).
+    kind="issue":    a drill-down for one reason (list of example URLs).
+    """
+
+    __tablename__ = "gsc_indexing_exports"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    property_id: Mapped[int] = mapped_column(ForeignKey("gsc_properties.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(16))
+    filename: Mapped[str] = mapped_column(String(255))
+    issue: Mapped[str | None] = mapped_column(String(255))  # for kind="issue"
+    chart_date: Mapped[date | None] = mapped_column(Date)
+    indexed: Mapped[int | None] = mapped_column(Integer)
+    not_indexed: Mapped[int | None] = mapped_column(Integer)
+    uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    reasons: Mapped[list["GscIndexingExportReason"]] = relationship(cascade="all, delete-orphan")
+    urls: Mapped[list["GscIndexingExportUrl"]] = relationship(cascade="all, delete-orphan")
+
+
+class GscIndexingExportReason(Base):
+    __tablename__ = "gsc_indexing_export_reasons"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    export_id: Mapped[int] = mapped_column(ForeignKey("gsc_indexing_exports.id", ondelete="CASCADE"), index=True)
+    reason: Mapped[str] = mapped_column(String(255))
+    source: Mapped[str | None] = mapped_column(String(64))
+    validation: Mapped[str | None] = mapped_column(String(64))
+    pages: Mapped[int] = mapped_column(Integer)
+    critical: Mapped[bool | None] = mapped_column(Boolean)
+
+
+class GscIndexingExportUrl(Base):
+    __tablename__ = "gsc_indexing_export_urls"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    export_id: Mapped[int] = mapped_column(ForeignKey("gsc_indexing_exports.id", ondelete="CASCADE"), index=True)
+    url: Mapped[str] = mapped_column(Text)
+    last_crawled: Mapped[date | None] = mapped_column(Date)

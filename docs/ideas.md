@@ -16,6 +16,7 @@ _Added 2026-10-15._
 
 | # | Idea | Status |
 |---|------|--------|
-| 4 | **Worth fixing vs. waste of time** — for each non-indexed reason (and its pages), suggest whether it's worth fixing or safe to ignore (e.g. "Page with redirect" or "Alternate page with proper canonical" are usually fine; "Crawled – currently not indexed" on money pages is worth fixing). | 💡 Later |
+| — | **Decision:** indexing inspection runs only when the user clicks "Inspect pages" for a client — no automatic or bulk runs across all clients. | ✅ Current behaviour |
+| 4 | **Worth fixing vs. waste of time** — for each non-indexed reason (and its pages), suggest whether it's worth fixing or safe to ignore (e.g. "Page with redirect" or "Alternate page with proper canonical" are usually fine; "Crawled – currently not indexed" on money pages is worth fixing). | ✅ Built 2026-10-15 — verdict + what-to-do per reason, sitemap-cleanup flags |
 
 _Added 2026-10-15._
