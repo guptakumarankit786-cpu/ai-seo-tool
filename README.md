@@ -22,6 +22,15 @@ AI-powered SEO tool, built feature by feature.
    ```
 3. Open <http://localhost:3000>. The API is at <http://localhost:8000/docs>.
 
+## Tests
+
+Backend tests run against a separate `seo_tool_test` database (Google APIs are mocked):
+
+```bash
+docker compose exec db psql -U seo -d seo_tool -c "CREATE DATABASE seo_tool_test"   # once
+docker compose exec backend python -m pytest -q
+```
+
 ## Features
 
 | Feature | Status |
