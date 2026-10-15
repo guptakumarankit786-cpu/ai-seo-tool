@@ -1,0 +1,110 @@
+# Architecture — AI SEO Tool
+
+_Last updated: 2026-10-15_
+
+## 1. Overview
+
+```
+ Browser ──► Next.js frontend (:3000) ──fetch──► FastAPI backend (:8000) ──► Postgres (:5432)
+                                                     │
+                                                     ├─► Google OAuth 2.0
+                                                     ├─► Search Console API (sites, searchAnalytics, sitemaps)
+                                                     ├─► URL Inspection API
+                                                     └─► Client sitemaps (HTTP)
+```
+
+Everything runs in **Docker Compose** (`docker-compose.yml`): `db`, `backend`, `frontend`.
+
+| Layer | Tech | Folder |
+|---|---|---|
+| Frontend | Next.js 16 (App Router, `cacheComponents`), React 19, TypeScript, Tailwind v4, Recharts | `frontend/` |
+| Backend | FastAPI, Pydantic v2, SQLAlchemy 2 (sync), Alembic, httpx | `backend/` |
+| Database | Postgres 16 | volume `postgres_data` |
+| Tests | pytest against a separate `seo_tool_test` DB; Google APIs mocked | `backend/tests/` |
+
+## 2. Backend layout
+
+```
+backend/app/
+  main.py              app, CORS, routers, startup cleanup of interrupted jobs
+  config.py            settings from env (.env)
+  db.py                engine, SessionLocal, Base
+  crypto.py            Fernet encrypt/decrypt for OAuth tokens
+  models.py            all tables
+  gsc/
+    google_api.py      thin wrappers: OAuth, sites, searchAnalytics, sitemaps, URL Inspection
+    router.py          /api/gsc/... connections, OAuth, sync, performance reports
+    sync.py            property discovery + performance sync job
+    indexing.py        URL discovery (sitemaps + search pages) + inspection job
+    indexing_router.py /api/gsc/properties/{id}/indexing/... inspection, export upload
+    export_parser.py   Search Console Page-indexing export (ZIP/CSV) parser
+    advice.py          reason → verdict (fix / review / ignore) + action
+```
+
+## 3. Data model
+
+| Table | Purpose |
+|---|---|
+| `oauth_states` | Short-lived CSRF state for the OAuth redirect (10 min, single use). |
+| `google_connections` | Connected Google account; **encrypted** refresh + access tokens. |
+| `gsc_properties` | Search Console properties per connection. |
+| `gsc_sync_runs` | Performance sync jobs (status, range, rows). |
+| `gsc_daily_metrics` | Per-day totals (PK property+date). |
+| `gsc_query_metrics`, `gsc_page_metrics` | Per-day per-query / per-page metrics. |
+| `gsc_inspection_runs` | URL inspection jobs (known / queued / inspected / failed, quota). |
+| `gsc_url_inspections` | Latest inspection per URL (coverage state, canonicals, last crawl, in_sitemap / in_search). |
+| `gsc_indexing_exports` | Uploaded Search Console exports (`overview` or per-reason `issue`). |
+| `gsc_indexing_export_reasons`, `gsc_indexing_export_urls` | Parsed rows of those uploads. |
+
+Deleting a connection cascades to everything below it. Schema changes go through **Alembic** (`backend/alembic/versions/`).
+
+## 4. Key flows
+
+**OAuth connect** — `GET /api/gsc/oauth/start` stores a random state and redirects to Google (offline access, `webmasters.readonly`). Callback verifies state, exchanges the code, rejects grants without Search Console scope, encrypts tokens, fetches the email, discovers properties, redirects to `/integrations`.
+
+**Performance sync** — `POST /properties/{id}/sync` creates a run and returns 202; a background task pulls `date`, `date+query`, `date+page` (paged by 25k rows), then **replaces** that date range in one transaction (idempotent). Range ends 3 days ago (Google data lag).
+
+**Indexing inspection** — `POST /properties/{id}/indexing` (user-triggered):
+1. Discover URLs: sitemaps from the Sitemaps API (follows indexes, gzip, size/count caps) + distinct clean pages (no `?`/`#`) from performance data; scoped to the property; prune URLs no longer found.
+2. Budget = 2,000 − inspections in the last 24 h.
+3. Queue: never-inspected first (sitemap before search-only), then results older than 7 days.
+4. Inspect with 10 threads; access token refreshed during long runs; 429 stops the run as `partial`.
+
+**Export upload** — `POST /properties/{id}/indexing/uploads` (multipart). Files recognised by header, not name. Property in `Metadata.csv` must match.
+
+**Advice** — `advice.py` normalises Google's wording (quotes, dashes, case) and maps each reason to a verdict + action; reasons sorted worth-fixing first.
+
+## 5. Background jobs
+FastAPI `BackgroundTasks` run inside the API process. On startup, any run still marked `running` is set to `failed: Interrupted by a server restart`.
+**Known limitation:** a running job blocks `uvicorn --reload` until it finishes (dev only). Planned: move jobs to a separate worker (see Task.md).
+
+## 6. Frontend layout
+
+```
+frontend/src/
+  app/layout.tsx                     sidebar shell
+  app/integrations/                  connect Google, list properties, sync
+  app/gsc/[propertyId]/              Performance dashboard
+  app/gsc/[propertyId]/indexing/     Indexing (inspected / export, advice)
+  components/ui.tsx                  Card, Button, Banner, Badge
+  components/property-tabs.tsx       Performance | Indexing tabs
+  components/use-sync.ts             start + poll a sync
+  lib/api.ts                         typed API client + formatters
+```
+Pages are thin server components wrapping client components in `<Suspense>` (required by `cacheComponents` for runtime params / search params). Data is fetched from the browser; running jobs are polled.
+
+## 7. Security
+- Secrets only in `.env` (gitignored); `.env.example` is the template.
+- OAuth tokens encrypted at rest with Fernet (`TOKEN_ENCRYPTION_KEY`).
+- Read-only Google scopes; OAuth state is single-use and expires.
+- Upload limits: 20 MB file, 100 MB unzipped, 20 CSVs.
+- No app login yet — run locally / on a trusted network only.
+
+## 8. Configuration (`.env`)
+`BACKEND_URL`, `FRONTEND_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `TOKEN_ENCRYPTION_KEY`. Compose sets `DATABASE_URL`, and polling env vars because Windows bind mounts don't emit file events.
+
+## 9. Testing
+```bash
+docker compose exec backend python -m pytest -q
+```
+89 tests: OAuth, encryption, sync, reports maths, inspection discovery/quota/ordering, export parsing, advice, endpoints. Frontend: typecheck + lint; verified manually in the browser.
