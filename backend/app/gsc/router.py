@@ -37,6 +37,8 @@ class SyncRunOut(BaseModel):
     start_date: date
     end_date: date
     rows_written: int
+    chunks_total: int
+    chunks_done: int
     error: str | None
     started_at: datetime
     finished_at: datetime | None
@@ -48,6 +50,9 @@ class PropertyOut(BaseModel):
     permission_level: str
     last_synced_at: datetime | None
     latest_run: SyncRunOut | None
+    # Range of synced performance data (null until the first sync).
+    data_start: date | None
+    data_end: date | None
 
 
 class ConnectionOut(BaseModel):
@@ -63,7 +68,28 @@ class StatusOut(BaseModel):
 
 
 class SyncIn(BaseModel):
+    # "range": (re)fetch the last `days` days. "latest": only days after what's already stored.
+    mode: Literal["range", "latest"] = "range"
     days: int = 90
+
+
+Compare = Literal["previous", "year"]
+# Year-over-year compares with the same weekdays 52 weeks earlier.
+YEAR_OFFSET = timedelta(days=364)
+
+
+def comparison_window(start: date, end: date, compare: Compare) -> tuple[date, date]:
+    if compare == "year":
+        return start - YEAR_OFFSET, end - YEAR_OFFSET
+    length = end - start + timedelta(days=1)
+    return start - length, start - timedelta(days=1)
+
+
+def has_history(db: Session, property_id: int, since: date) -> bool:
+    """True if stored data reaches back to `since`. Comparing against a window we only partly
+    have would show a misleading change, so callers skip the comparison instead."""
+    first = db.scalar(select(func.min(GscDailyMetric.date)).where(GscDailyMetric.property_id == property_id))
+    return first is not None and first <= since
 
 
 class Totals(BaseModel):
@@ -81,9 +107,13 @@ class SummaryOut(BaseModel):
     site_url: str
     start_date: date
     end_date: date
+    compare: Compare
+    compare_start: date
+    compare_end: date
     totals: Totals
-    previous_totals: Totals | None
+    previous_totals: Totals | None  # totals for the comparison window
     daily: list[DailyPoint]
+    previous_daily: list[DailyPoint]  # comparison window, for the chart overlay
 
 
 class DimensionRow(Totals):
@@ -112,12 +142,19 @@ def _latest_run(db: Session, property_id: int) -> GscSyncRun | None:
 
 def _property_out(db: Session, prop: GscProperty) -> PropertyOut:
     run = _latest_run(db, prop.id)
+    data_start, data_end = db.execute(
+        select(func.min(GscDailyMetric.date), func.max(GscDailyMetric.date)).where(
+            GscDailyMetric.property_id == prop.id
+        )
+    ).one()
     return PropertyOut(
         id=prop.id,
         site_url=prop.site_url,
         permission_level=prop.permission_level,
         last_synced_at=prop.last_synced_at,
         latest_run=SyncRunOut.model_validate(run, from_attributes=True) if run else None,
+        data_start=data_start,
+        data_end=data_end,
     )
 
 
@@ -310,7 +347,14 @@ def start_sync(
         running.error = "Interrupted"
         running.finished_at = datetime.now(UTC)
 
-    start, end = sync.default_range((body or SyncIn()).days)
+    body = body or SyncIn()
+    if body.mode == "latest":
+        window = sync.latest_range(db, prop.id)
+        if window is None:
+            raise HTTPException(400, "Nothing synced yet — run a full sync first")
+        start, end = window
+    else:
+        start, end = sync.default_range(body.days)
     run = GscSyncRun(property_id=prop.id, status="running", start_date=start, end_date=end)
     db.add(run)
     db.commit()
@@ -329,29 +373,42 @@ def get_property(property_id: int, db: Session = Depends(get_db)):
 
 @router.get("/properties/{property_id}/summary", response_model=SummaryOut)
 def summary(
-    property_id: int, days: int = Query(28, ge=1, le=sync.MAX_HISTORY_DAYS), db: Session = Depends(get_db)
+    property_id: int,
+    days: int = Query(28, ge=1, le=sync.MAX_HISTORY_DAYS),
+    compare: Compare = "previous",
+    db: Session = Depends(get_db),
 ):
     prop = _get_property(db, property_id)
     start, end = _window(db, prop.id, days)
+    compare_start, compare_end = comparison_window(start, end, compare)
     totals = _totals(db, prop.id, start, end) or Totals(clicks=0, impressions=0, ctr=0, position=0)
-    previous = _totals(db, prop.id, start - timedelta(days=days), start - timedelta(days=1))
-    daily = db.scalars(
+    comparable = has_history(db, prop.id, compare_start)
+    previous = _totals(db, prop.id, compare_start, compare_end) if comparable else None
+    return SummaryOut(
+        site_url=prop.site_url,
+        start_date=start,
+        end_date=end,
+        compare=compare,
+        compare_start=compare_start,
+        compare_end=compare_end,
+        totals=totals,
+        previous_totals=previous,
+        daily=_daily(db, prop.id, start, end),
+        previous_daily=_daily(db, prop.id, compare_start, compare_end) if comparable else [],
+    )
+
+
+def _daily(db: Session, property_id: int, start: date, end: date) -> list[DailyPoint]:
+    rows = db.scalars(
         select(GscDailyMetric)
         .where(
-            GscDailyMetric.property_id == prop.id,
+            GscDailyMetric.property_id == property_id,
             GscDailyMetric.date >= start,
             GscDailyMetric.date <= end,
         )
         .order_by(GscDailyMetric.date)
     ).all()
-    return SummaryOut(
-        site_url=prop.site_url,
-        start_date=start,
-        end_date=end,
-        totals=totals,
-        previous_totals=previous,
-        daily=[DailyPoint.model_validate(d, from_attributes=True) for d in daily],
-    )
+    return [DailyPoint.model_validate(d, from_attributes=True) for d in rows]
 
 
 @router.get("/properties/{property_id}/queries", response_model=list[DimensionRow])
@@ -364,7 +421,7 @@ def top_queries(
 ):
     prop = _get_property(db, property_id)
     terms = brand.effective_terms(prop.brand_terms, prop.site_url)
-    is_brand = brand.brand_condition(GscQueryMetric.query, terms)
+    is_brand = brand.brand_condition(GscQueryMetric.query_norm, terms)
     extra = {"all": [], "brand": [is_brand], "non_brand": [~is_brand]}[segment]
     rows = _top(db, GscQueryMetric, GscQueryMetric.query, property_id, days, limit, *extra)
     for row in rows:

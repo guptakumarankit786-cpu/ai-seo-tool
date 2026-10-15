@@ -5,6 +5,14 @@ Decisions and learned facts, newest first. Add an entry whenever something is de
 ## 2026-10-15
 
 **Decisions**
+- 16-month sync is chunked by 30 days, newest first, committed per chunk; "Latest days" re-fetches 3 days of overlap.
+- Year-over-year = same window 364 days earlier (weekday-aligned). No comparison is shown when stored history only partly covers the comparison window.
+- Keyword text is normalised once in a Postgres generated column (`query_norm`) — reused for brand matching and the upcoming keyword views.
+- Direction: cover **all of Google Search Console** first, then other sources. Keep the GSC phase **free** (Google APIs only).
+- "High performance" keywords = the ones bringing the most traffic and impressions. Revenue per keyword comes later via GA4.
+- Question and buying-intent views cover **all** English question / buying-intent patterns. Hinglish is postponed to a later idea (#5o).
+- Striking distance / cannibalisation use query+page data **fetched live** from Google when opened — nothing extra stored.
+- Keyword views are combinable filter chips (they overlap); Brand / Non-brand stays a switch.
 - Brand vs non-brand: per-client editable **brand terms**, default suggested from the domain name. Matching ignores case, spaces and punctuation. Classification runs in SQL at read time (no stored flag) so term edits apply instantly.
 - Anonymised queries: Google withholds a large share of clicks at keyword level (~30% on a real client). We show them as "hidden by Google" instead of assigning them to brand or non-brand.
 - More query types (questions, product, local, competitor…) noted as idea #5 — not built.
@@ -18,6 +26,9 @@ Decisions and learned facts, newest first. Add an entry whenever something is de
 - Use the installed Claude skills (Jeffallan/claude-skills) for every feature.
 
 **Facts learned**
+- Google returns the full 486 days (16 months) of performance data.
+- **Google caps keyword rows at 5,000 per day** (date+query), regardless of request size. On a large site the cut-off keywords had **zero clicks** — clicks are unaffected. Splitting by device recovers ~20% more impression-only long-tail keywords (+36% rows); revisit for long-tail/question views.
+- 16 months on a large site ≈ 2.8M rows, ~12 min to sync; regex-at-read brand matching took 12–14 s → generated column brought it to ~1.5 s.
 - Brand terms need sub-brands/product lines and common misspellings — a domain-only term misses them (seen on real data).
 - Tailwind classes from a newly added file may not appear in the Docker dev server until its cache is cleared: `docker compose exec frontend sh -c "rm -rf .next/*"` then restart the frontend.
 - Google has **no API for the Page Indexing report**. Options: URL Inspection API (per URL) or the Search Console export.

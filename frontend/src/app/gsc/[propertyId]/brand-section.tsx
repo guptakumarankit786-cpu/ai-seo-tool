@@ -16,6 +16,7 @@ import {
   api,
   fmt,
   type BrandTerms,
+  type Compare,
   type DimensionRow,
   type QuerySegment,
   type SegmentTotals,
@@ -26,11 +27,13 @@ import {
 export function BrandSection({
   propertyId,
   days,
+  compare,
   version,
   onTermsChange,
 }: {
   propertyId: number;
   days: number;
+  compare: Compare;
   version: number;
   onTermsChange: () => void;
 }) {
@@ -40,7 +43,7 @@ export function BrandSection({
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([api.segments(propertyId, days), api.brandTerms(propertyId)])
+    Promise.all([api.segments(propertyId, days, compare), api.brandTerms(propertyId)])
       .then(([s, t]) => {
         if (cancelled) return;
         setData(s);
@@ -51,7 +54,7 @@ export function BrandSection({
     return () => {
       cancelled = true;
     };
-  }, [propertyId, days, version]);
+  }, [propertyId, days, compare, version]);
 
   if (error) return <Card className="p-4 text-sm text-negative">{error}</Card>;
   if (!data || !terms) return null;
@@ -88,7 +91,7 @@ export function BrandSection({
               <CartesianGrid stroke="var(--border)" vertical={false} />
               <XAxis
                 dataKey="date"
-                tickFormatter={fmt.date}
+                tickFormatter={data.daily.length > 120 ? fmt.month : fmt.date}
                 tick={{ fill: "var(--muted)", fontSize: 12 }}
                 tickLine={false}
                 axisLine={{ stroke: "var(--border)" }}

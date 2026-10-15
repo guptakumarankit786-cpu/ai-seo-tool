@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Badge, Banner, Button, Card } from "@/components/ui";
+import { SyncControls, SyncStatus } from "@/components/sync-controls";
 import { useSync } from "@/components/use-sync";
-import { api, fmt, propertyLabel, type GscStatus, type Property } from "@/lib/api";
+import { api, propertyLabel, type GscStatus, type Property } from "@/lib/api";
 
 export function IntegrationsView() {
   const params = useSearchParams();
@@ -145,20 +146,12 @@ function PropertyRow({ property, onChange }: { property: Property; onChange: () 
           <Badge>{kind}</Badge>
         </div>
         <p className="mt-0.5 text-xs text-muted">
-          {running
-            ? "Syncing… this can take a minute for large sites."
-            : run?.status === "failed"
-              ? `Last sync failed: ${run.error}`
-              : property.last_synced_at
-                ? `Synced ${fmt.dateTime(property.last_synced_at)} · ${fmt.int(run?.rows_written ?? 0)} rows`
-                : "Not synced yet"}
+          <SyncStatus property={property} running={running} run={run} />
         </p>
         {error && <p className="mt-0.5 text-xs text-negative">{error}</p>}
       </div>
       <div className="flex shrink-0 flex-wrap gap-2">
-        <Button variant="secondary" disabled={running} onClick={() => start(90)}>
-          {running ? "Syncing…" : property.last_synced_at ? "Re-sync 90 days" : "Sync 90 days"}
-        </Button>
+        <SyncControls property={property} running={running} start={start} />
         <Link
           href={`/gsc/${property.id}`}
           className="inline-flex items-center rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium hover:bg-accent-soft"

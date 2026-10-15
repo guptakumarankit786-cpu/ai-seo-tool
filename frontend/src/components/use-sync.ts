@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { api, type Property, type SyncRun } from "@/lib/api";
+import { api, type Property, type SyncRequest, type SyncRun } from "@/lib/api";
 
 const POLL_MS = 2000;
 
@@ -33,10 +33,10 @@ export function useSync(property: Property, onDone?: () => void) {
   }, [running, property.id, onDone]);
 
   const start = useCallback(
-    async (days: number) => {
+    async (body: SyncRequest) => {
       setError(null);
       try {
-        setRun(await api.sync(property.id, days));
+        setRun(await api.sync(property.id, body));
       } catch (e) {
         setError((e as Error).message);
       }

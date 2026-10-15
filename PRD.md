@@ -34,8 +34,10 @@ The agency manages many client sites (dozens of Search Console properties) from 
 - Disconnect removes the account, its tokens and all synced data.
 
 ### 4.2 Performance ✅
-- Manual **Sync 90 days** per client: daily totals, per-query and per-page metrics.
-- Dashboard: clicks, impressions, CTR, average position (vs previous period), daily chart, top queries, top pages; 7 / 28 / 90-day views.
+- Manual sync per client, up to **16 months** of history (Google's maximum): choose *Latest days*, *3 months*, *6 months* or *Full 16 months*. Long syncs run month by month, newest first, with progress shown; *Latest days* only fetches days after what's stored.
+- Dashboard: clicks, impressions, CTR, average position, daily chart, top queries, top pages; ranges 7d / 28d / 3m / 6m / 12m / 16m.
+- Compare with the **previous period** or the **same period last year** (same weekdays, 52 weeks earlier); the comparison is drawn dashed on the chart. If stored history doesn't fully cover the comparison window, no change is shown ("Not enough history to compare") rather than a misleading one.
+- Google returns at most ~5,000 keywords per day; the cut-off long tail had zero clicks in testing, so traffic numbers are unaffected.
 - Numbers verified identical to Google's API.
 - **Brand vs non-brand queries:** per-client brand terms (pre-filled from the domain, editable — add sub-brands and misspellings); brand / non-brand cards with change vs previous period and click share; daily brand vs non-brand chart; Top queries filter (All / Brand / Non-brand). Clicks Google hides at keyword level (anonymised queries) are shown separately, not guessed.
 
@@ -60,7 +62,7 @@ Google offers **no API** for the Page Indexing report, so there are two sources:
 
 ### 4.4 Planned
 See [Task.md](Task.md) for the ordered backlog and [docs/ideas.md](docs/ideas.md) for raw ideas.
-Highlights: longer sync periods (up to 16 months), automatic scheduled syncs, more data sources.
+Highlights: keyword views (new, striking distance, long-tail, questions, buying intent…), automatic scheduled syncs, more data sources.
 
 ## 5. Non-goals (for now)
 - Writing to Search Console (submitting sitemaps, requesting indexing).

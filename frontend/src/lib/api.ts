@@ -6,6 +6,8 @@ export type SyncRun = {
   start_date: string;
   end_date: string;
   rows_written: number;
+  chunks_total: number;
+  chunks_done: number;
   error: string | null;
   started_at: string;
   finished_at: string | null;
@@ -17,7 +19,13 @@ export type Property = {
   permission_level: string;
   last_synced_at: string | null;
   latest_run: SyncRun | null;
+  data_start: string | null;
+  data_end: string | null;
 };
+
+export type SyncRequest = { mode: "range"; days: number } | { mode: "latest" };
+
+export type Compare = "previous" | "year";
 
 export type Connection = {
   id: number;
@@ -42,9 +50,13 @@ export type Summary = {
   site_url: string;
   start_date: string;
   end_date: string;
+  compare: Compare;
+  compare_start: string;
+  compare_end: string;
   totals: Totals;
   previous_totals: Totals | null;
   daily: (Totals & { date: string })[];
+  previous_daily: (Totals & { date: string })[];
 };
 
 export type DimensionRow = Totals & { key: string; brand?: boolean | null };
@@ -177,13 +189,13 @@ export const api = {
       method: "POST",
     }),
   property: (id: number) => request<Property>(`/api/gsc/properties/${id}`),
-  sync: (id: number, days: number) =>
+  sync: (id: number, body: SyncRequest) =>
     request<SyncRun>(`/api/gsc/properties/${id}/sync`, {
       method: "POST",
-      body: JSON.stringify({ days }),
+      body: JSON.stringify(body),
     }),
-  summary: (id: number, days: number) =>
-    request<Summary>(`/api/gsc/properties/${id}/summary?days=${days}`),
+  summary: (id: number, days: number, compare: Compare = "previous") =>
+    request<Summary>(`/api/gsc/properties/${id}/summary?days=${days}&compare=${compare}`),
   queries: (id: number, days: number, limit = 50, segment: QuerySegment = "all") =>
     request<DimensionRow[]>(
       `/api/gsc/properties/${id}/queries?days=${days}&limit=${limit}&segment=${segment}`,
@@ -194,8 +206,8 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ terms }),
     }),
-  segments: (id: number, days: number) =>
-    request<Segments>(`/api/gsc/properties/${id}/segments?days=${days}`),
+  segments: (id: number, days: number, compare: Compare = "previous") =>
+    request<Segments>(`/api/gsc/properties/${id}/segments?days=${days}&compare=${compare}`),
   pages: (id: number, days: number, limit = 50) =>
     request<DimensionRow[]>(`/api/gsc/properties/${id}/pages?days=${days}&limit=${limit}`),
   indexing: (id: number) => request<IndexingSummary>(`/api/gsc/properties/${id}/indexing`),
@@ -222,10 +234,19 @@ export const fmt = {
   int: (n: number) => n.toLocaleString("en-US"),
   pct: (n: number) => `${(n * 100).toFixed(2)}%`,
   pos: (n: number) => n.toFixed(1),
-  date: (iso: string) =>
-    new Date(iso + (iso.length === 10 ? "T00:00:00" : "")).toLocaleDateString("en-US", {
+  /** "Oct 12", or "Jun 14, 2025" when not in the current year. */
+  date: (iso: string) => {
+    const d = new Date(iso + (iso.length === 10 ? "T00:00:00" : ""));
+    return d.toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
+      ...(d.getFullYear() !== new Date().getFullYear() && { year: "numeric" }),
+    });
+  },
+  month: (iso: string) =>
+    new Date(iso + (iso.length === 10 ? "T00:00:00" : "")).toLocaleDateString("en-US", {
+      month: "short",
+      year: "2-digit",
     }),
   dateTime: (iso: string) =>
     new Date(iso).toLocaleString("en-US", {

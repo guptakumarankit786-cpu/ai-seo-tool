@@ -39,6 +39,7 @@ def seeded(db, prop):
     add_query(db, prop, "running shoes", 20, 500, 8.0)
     add_query(db, prop, "best trainers", 5, 300, 12.0)
     # previous period
+    add_day(db, prop, clicks=20, impressions=400, day=END - timedelta(days=13))  # history covers the whole previous week
     add_query(db, prop, "example", 8, 40, 1.0, day=END - timedelta(days=7))
     add_query(db, prop, "running shoes", 4, 200, 9.0, day=END - timedelta(days=7))
     db.commit()

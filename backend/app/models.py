@@ -2,6 +2,7 @@ from datetime import date, datetime
 
 from sqlalchemy import (
     Boolean,
+    Computed,
     Date,
     DateTime,
     Float,
@@ -76,6 +77,9 @@ class GscSyncRun(Base):
     start_date: Mapped[date] = mapped_column(Date)
     end_date: Mapped[date] = mapped_column(Date)
     rows_written: Mapped[int] = mapped_column(Integer, default=0)
+    # Long ranges are fetched in ~monthly chunks; progress for the UI.
+    chunks_total: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    chunks_done: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     error: Mapped[str | None] = mapped_column(Text)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -106,6 +110,11 @@ class GscQueryMetric(Base):
     property_id: Mapped[int] = mapped_column(ForeignKey("gsc_properties.id", ondelete="CASCADE"))
     date: Mapped[date] = mapped_column(Date)
     query: Mapped[str] = mapped_column(Text)
+    # Lower-cased, spaces/punctuation stripped; filled by Postgres so keyword matching
+    # (brand terms, keyword types) doesn't re-run a regex over millions of rows per request.
+    query_norm: Mapped[str] = mapped_column(
+        Text, Computed(r"regexp_replace(lower(query), '[[:space:][:punct:]]', '', 'g')", persisted=True)
+    )
     clicks: Mapped[int] = mapped_column(Integer)
     impressions: Mapped[int] = mapped_column(Integer)
     ctr: Mapped[float] = mapped_column(Float)

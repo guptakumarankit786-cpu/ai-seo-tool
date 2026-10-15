@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.gsc import brand, sync
-from app.gsc.router import Totals, _totals, _window
+from app.gsc.router import Compare, Totals, _totals, _window, comparison_window, has_history
 from app.models import GscProperty, GscQueryMetric
 
 router = APIRouter(prefix="/api/gsc/properties/{property_id}", tags=["gsc-brand"])
@@ -95,35 +95,42 @@ def segments(
     property_id: int,
     db: DbDep,
     days: Annotated[int, Query(ge=1, le=sync.MAX_HISTORY_DAYS)] = 28,
+    compare: Compare = "previous",
 ):
-    """Brand vs non-brand totals (with previous period) and daily split, from query-level data."""
+    """Brand vs non-brand totals (with comparison period) and daily split, from query-level data."""
     prop = _property(db, property_id)
     terms = brand.effective_terms(prop.brand_terms, prop.site_url)
     start, end = _window(db, prop.id, days)
-    prev_start = start - timedelta(days=days)
+    compare_start, compare_end = comparison_window(start, end, compare)
 
-    is_brand = case((brand.brand_condition(GscQueryMetric.query, terms), True), else_=False)
-    rows = db.execute(
-        select(
-            GscQueryMetric.date,
-            is_brand,
-            func.sum(GscQueryMetric.clicks),
-            func.sum(GscQueryMetric.impressions),
-            func.sum(GscQueryMetric.position * GscQueryMetric.impressions),
-        )
-        .where(
-            GscQueryMetric.property_id == prop.id,
-            GscQueryMetric.date >= prev_start,
-            GscQueryMetric.date <= end,
-        )
-        .group_by(GscQueryMetric.date, is_brand)
-    ).all()
+    is_brand = case((brand.brand_condition(GscQueryMetric.query_norm, terms), True), else_=False)
 
-    # [current, previous] accumulators per segment: clicks, impressions, weighted position
+    def grouped(range_start: date, range_end: date):
+        return db.execute(
+            select(
+                GscQueryMetric.date,
+                is_brand,
+                func.sum(GscQueryMetric.clicks),
+                func.sum(GscQueryMetric.impressions),
+                func.sum(GscQueryMetric.position * GscQueryMetric.impressions),
+            )
+            .where(
+                GscQueryMetric.property_id == prop.id,
+                GscQueryMetric.date >= range_start,
+                GscQueryMetric.date <= range_end,
+            )
+            .group_by(GscQueryMetric.date, is_brand)
+        ).all()
+
+    # Two separate scans: for year-over-year the windows are a year apart.
+    rows = [(0, *r) for r in grouped(start, end)]
+    if has_history(db, prop.id, compare_start):
+        rows += [(1, *r) for r in grouped(compare_start, compare_end)]
+
+    # [current, comparison] accumulators per segment: clicks, impressions, weighted position
     acc = {seg: [[0, 0, 0.0], [0, 0, 0.0]] for seg in (True, False)}
     days_map: dict[date, SegmentDay] = {}
-    for day, seg, clicks, impressions, weighted in rows:
-        period = 0 if day >= start else 1
+    for period, day, seg, clicks, impressions, weighted in rows:
         bucket = acc[seg][period]
         bucket[0] += clicks
         bucket[1] += impressions

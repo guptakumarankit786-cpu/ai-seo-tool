@@ -12,7 +12,24 @@ import {
 } from "recharts";
 import { fmt, type Summary } from "@/lib/api";
 
-export function TrafficChart({ data }: { data: Summary["daily"] }) {
+/** Clicks + impressions per day, with the comparison period drawn dashed on the same days. */
+export function TrafficChart({ summary, compareLabel }: { summary: Summary; compareLabel: string }) {
+  // Shift each comparison day onto the matching day of the current window.
+  const offset = Date.parse(summary.start_date) - Date.parse(summary.compare_start);
+  const previous = new Map(
+    summary.previous_daily.map((d) => [
+      new Date(Date.parse(d.date) + offset).toISOString().slice(0, 10),
+      d,
+    ]),
+  );
+  const data = summary.daily.map((d) => ({
+    ...d,
+    prev_clicks: previous.get(d.date)?.clicks,
+    prev_impressions: previous.get(d.date)?.impressions,
+  }));
+  const hasPrevious = previous.size > 0;
+  const longRange = summary.daily.length > 120; // label months instead of days
+
   return (
     <div className="h-72 w-full">
       <ResponsiveContainer>
@@ -20,7 +37,7 @@ export function TrafficChart({ data }: { data: Summary["daily"] }) {
           <CartesianGrid stroke="var(--border)" vertical={false} />
           <XAxis
             dataKey="date"
-            tickFormatter={fmt.date}
+            tickFormatter={longRange ? fmt.month : fmt.date}
             tick={{ fill: "var(--muted)", fontSize: 12 }}
             tickLine={false}
             axisLine={{ stroke: "var(--border)" }}
@@ -74,6 +91,34 @@ export function TrafficChart({ data }: { data: Summary["daily"] }) {
             dot={false}
             isAnimationActive={false}
           />
+          {hasPrevious && (
+            <Line
+              yAxisId="clicks"
+              type="monotone"
+              dataKey="prev_clicks"
+              name={`Clicks (${compareLabel})`}
+              stroke="var(--chart-clicks)"
+              strokeOpacity={0.5}
+              strokeDasharray="4 4"
+              strokeWidth={1.5}
+              dot={false}
+              isAnimationActive={false}
+            />
+          )}
+          {hasPrevious && (
+            <Line
+              yAxisId="impressions"
+              type="monotone"
+              dataKey="prev_impressions"
+              name={`Impressions (${compareLabel})`}
+              stroke="var(--chart-impressions)"
+              strokeOpacity={0.5}
+              strokeDasharray="4 4"
+              strokeWidth={1.5}
+              dot={false}
+              isAnimationActive={false}
+            />
+          )}
         </LineChart>
       </ResponsiveContainer>
     </div>

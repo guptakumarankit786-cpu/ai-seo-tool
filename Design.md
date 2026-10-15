@@ -45,8 +45,10 @@ Use tokens through Tailwind (`bg-surface`, `text-muted`, `border-border`, `bg-ne
 | Verdict badge | 🔴 **Worth fixing** (`negative/15`), 🔵 **Check pages** (`accent-soft`), 🟢 **Safe to ignore** (`positive/15`). |
 | Expandable row | chevron + title + badges + count; opens advice box + URL table + "Show more". |
 | Progress card | text + thin accent bar, polled every 2–3 s. |
-| Segmented control | 7d / 28d / 90d ranges; "Inspected by app / Search Console export"; Top queries All / Brand / Non-brand. |
+| Segmented control | 7d / 28d / 3m / 6m / 12m / 16m ranges; "Inspected by app / Search Console export"; Top queries All / Brand / Non-brand. |
 | Segment card | coloured dot + label, share-of-clicks bar, 4 metrics with change vs previous period. |
+| Sync controls | select (Latest days / 3 / 6 / 16 months) + Sync button; status line underneath ("Data Jun 14, 2025 – Oct 12 · synced …", or "Syncing — month 4 of 17…"). |
+| Compare select | "Compare: previous period / same period last year"; KPI deltas say "vs previous period" / "vs last year"; chart shows the comparison as dashed, faded lines. |
 | Terms editor | chips + Edit → comma-separated input, Save / Cancel / Reset to suggestion. |
 
 ## 5. Patterns
@@ -55,6 +57,7 @@ Use tokens through Tailwind (`bg-surface`, `text-muted`, `border-border`, `bg-ne
 - **Empty states** say what to do next ("Run an inspection…", "Upload an export…").
 - **Errors** show the backend's message in plain words.
 - **Long jobs** show live progress and quota remaining; never block the page.
+- **Dates** show the year only when it isn't the current year ("Oct 12" vs "Jun 14, 2025"); long chart ranges label months ("Jun 25").
 
 ## 6. Copy
 - Plain English, short sentences, no jargon where a simple word works ("Pages found", "Waiting to be inspected").

@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { use, useCallback, useEffect, useState } from "react";
 import { PropertyTabs } from "@/components/property-tabs";
-import { Badge, Banner, Button, Card } from "@/components/ui";
+import { SyncControls, SyncStatus } from "@/components/sync-controls";
+import { Badge, Banner, Card } from "@/components/ui";
 import { useSync } from "@/components/use-sync";
 import {
   api,
   fmt,
   propertyLabel,
+  type Compare,
   type DimensionRow,
   type Property,
   type Summary,
@@ -17,11 +19,21 @@ import {
 import { BrandSection, QueriesTable } from "./brand-section";
 import { TrafficChart } from "./traffic-chart";
 
-const RANGES = [7, 28, 90] as const;
+const RANGES = [
+  { days: 7, label: "7d" },
+  { days: 28, label: "28d" },
+  { days: 90, label: "3m" },
+  { days: 180, label: "6m" },
+  { days: 365, label: "12m" },
+  { days: 486, label: "16m" },
+] as const;
+
+const COMPARE_LABEL: Record<Compare, string> = { previous: "vs previous period", year: "vs last year" };
 
 export function PropertyDashboard({ params }: { params: Promise<{ propertyId: string }> }) {
   const id = Number(use(params).propertyId);
   const [days, setDays] = useState<number>(28);
+  const [compare, setCompare] = useState<Compare>("previous");
   const [property, setProperty] = useState<Property | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [pages, setPages] = useState<DimensionRow[]>([]);
@@ -32,7 +44,7 @@ export function PropertyDashboard({ params }: { params: Promise<{ propertyId: st
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([api.property(id), api.summary(id, days), api.pages(id, days)])
+    Promise.all([api.property(id), api.summary(id, days, compare), api.pages(id, days)])
       .then(([p, s, pg]) => {
         if (cancelled) return;
         setProperty(p);
@@ -46,7 +58,7 @@ export function PropertyDashboard({ params }: { params: Promise<{ propertyId: st
     return () => {
       cancelled = true;
     };
-  }, [id, days, version]);
+  }, [id, days, compare, version]);
 
   if (error) return <Banner tone="error">{error}</Banner>;
   if (!property || !summary) return <p className="text-sm text-muted">Loading…</p>;
@@ -65,49 +77,50 @@ export function PropertyDashboard({ params }: { params: Promise<{ propertyId: st
             <Badge>{kind}</Badge>
           </div>
           <p className="mt-1 text-sm text-muted">
-            {fmt.date(summary.start_date)} – {fmt.date(summary.end_date)} · Google Search Console
+            {fmt.date(summary.start_date)} – {fmt.date(summary.end_date)} · compared with{" "}
+            {fmt.date(summary.compare_start)} – {fmt.date(summary.compare_end)}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex rounded-md border border-border bg-surface p-0.5" role="group">
-            {RANGES.map((r) => (
-              <button
-                key={r}
-                onClick={() => setDays(r)}
-                className={`rounded px-3 py-1 text-sm ${days === r ? "bg-accent-soft font-medium text-accent" : "text-muted hover:text-foreground"}`}
-              >
-                {r}d
-              </button>
-            ))}
-          </div>
-          <SyncControl property={property} onDone={load} />
-        </div>
+        <SyncBar property={property} onDone={load} />
       </header>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex rounded-md border border-border bg-surface p-0.5" role="group" aria-label="Date range">
+          {RANGES.map((r) => (
+            <button
+              key={r.days}
+              onClick={() => setDays(r.days)}
+              aria-pressed={days === r.days}
+              className={`rounded px-3 py-1 text-sm ${days === r.days ? "bg-accent-soft font-medium text-accent" : "text-muted hover:text-foreground"}`}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+        <select
+          aria-label="Compare with"
+          value={compare}
+          onChange={(e) => setCompare(e.target.value as Compare)}
+          className="rounded-md border border-border bg-surface px-2 py-1.5 text-sm"
+        >
+          <option value="previous">Compare: previous period</option>
+          <option value="year">Compare: same period last year</option>
+        </select>
+      </div>
 
       <PropertyTabs propertyId={id} active="performance" />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Kpi label="Clicks" metric="clicks" totals={summary.totals} prev={summary.previous_totals} />
-        <Kpi
-          label="Impressions"
-          metric="impressions"
-          totals={summary.totals}
-          prev={summary.previous_totals}
-        />
-        <Kpi label="Avg. CTR" metric="ctr" totals={summary.totals} prev={summary.previous_totals} />
-        <Kpi
-          label="Avg. position"
-          metric="position"
-          totals={summary.totals}
-          prev={summary.previous_totals}
-          lowerIsBetter
-        />
+        <Kpi label="Clicks" metric="clicks" summary={summary} />
+        <Kpi label="Impressions" metric="impressions" summary={summary} />
+        <Kpi label="Avg. CTR" metric="ctr" summary={summary} />
+        <Kpi label="Avg. position" metric="position" summary={summary} lowerIsBetter />
       </div>
 
       <Card className="p-4">
         <h2 className="mb-3 text-sm font-medium">Performance</h2>
         {summary.daily.length ? (
-          <TrafficChart data={summary.daily} />
+          <TrafficChart summary={summary} compareLabel={COMPARE_LABEL[compare]} />
         ) : (
           <p className="py-10 text-center text-sm text-muted">
             No data in this range yet. Run a sync to pull it in.
@@ -115,7 +128,7 @@ export function PropertyDashboard({ params }: { params: Promise<{ propertyId: st
         )}
       </Card>
 
-      <BrandSection propertyId={id} days={days} version={version} onTermsChange={load} />
+      <BrandSection propertyId={id} days={days} compare={compare} version={version} onTermsChange={load} />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <QueriesTable propertyId={id} days={days} version={version} />
@@ -125,14 +138,15 @@ export function PropertyDashboard({ params }: { params: Promise<{ propertyId: st
   );
 }
 
-function SyncControl({ property, onDone }: { property: Property; onDone: () => void }) {
-  const { running, error, start } = useSync(property, onDone);
+function SyncBar({ property, onDone }: { property: Property; onDone: () => void }) {
+  const { run, running, error, start } = useSync(property, onDone);
   return (
-    <div className="flex items-center gap-2">
-      {error && <span className="text-xs text-negative">{error}</span>}
-      <Button variant="secondary" disabled={running} onClick={() => start(90)}>
-        {running ? "Syncing…" : "Re-sync"}
-      </Button>
+    <div className="flex flex-col items-start gap-1 sm:items-end">
+      <SyncControls property={property} running={running} start={start} />
+      <p className="text-xs text-muted">
+        <SyncStatus property={property} running={running} run={run} />
+      </p>
+      {error && <p className="text-xs text-negative">{error}</p>}
     </div>
   );
 }
@@ -140,17 +154,16 @@ function SyncControl({ property, onDone }: { property: Property; onDone: () => v
 function Kpi({
   label,
   metric,
-  totals,
-  prev,
+  summary,
   lowerIsBetter = false,
 }: {
   label: string;
   metric: keyof Totals;
-  totals: Totals;
-  prev: Totals | null;
+  summary: Summary;
   lowerIsBetter?: boolean;
 }) {
-  const value = totals[metric];
+  const value = summary.totals[metric];
+  const prev = summary.previous_totals;
   const format = { clicks: fmt.int, impressions: fmt.int, ctr: fmt.pct, position: fmt.pos }[metric];
 
   let delta: { text: string; good: boolean } | null = null;
@@ -169,9 +182,10 @@ function Kpi({
       <p className="mt-1 text-2xl font-semibold tabular-nums">{format(value)}</p>
       {delta && (
         <p className={`mt-1 text-xs tabular-nums ${delta.good ? "text-positive" : "text-negative"}`}>
-          {delta.text} <span className="text-muted">vs previous period</span>
+          {delta.text} <span className="text-muted">{COMPARE_LABEL[summary.compare]}</span>
         </p>
       )}
+      {!prev && <p className="mt-1 text-xs text-muted">Not enough history to compare</p>}
     </Card>
   );
 }

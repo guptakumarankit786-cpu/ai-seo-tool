@@ -13,15 +13,18 @@ _Last updated: 2026-10-15. Raw ideas live in [docs/ideas.md](docs/ideas.md); onl
 - [x] Worth fixing vs. safe to ignore: verdict + action per reason, sitemap-cleanup flags
 - [x] Integrations: Performance + Indexing links for every client
 - [x] Performance: brand vs non-brand queries — editable brand terms, segment cards, daily chart, Top queries filter, hidden-clicks note
-- [x] Backend test suite (110 tests)
+- [x] 16 months of data: 3 / 6 / 16-month sync in monthly chunks with progress, "Latest days" sync, 3m–16m ranges, compare with previous period or last year (dashed on chart), generated `query_norm` for fast keyword matching — verified identical to Google
+- [x] Backend test suite (124 tests)
 - [x] Project docs: PRD, Architecture, Rules, Design, Task, Memory
 
-## 🔜 Next
+## 🔜 Next — GSC phase (approved 2026-10-15, see docs/ideas.md)
+- [ ] Keyword views part 1 (stored data): Long-tail, Question, Buying intent, New, Lost, Rising/Declining, Low CTR, Zero clicks, High performance (ideas #5)
+- [ ] Keyword views part 2 (live query+page from Google): Striking distance, Cannibalisation
+- [ ] Keyword views part 3: Competitor terms, Seasonal
 - [ ] Test the export upload with a **real** Search Console export and adjust the parser if needed
 - [ ] Decide what to merge from `test` into `main` (first stable release)
 
 ## 📋 Backlog (approved ideas, not started)
-- [ ] Longer sync periods — user picks a range up to 16 months (ideas #2)
 - [ ] Automatic scheduled syncs from Search Console (ideas #3)
 
 ## 🛠 Tech debt

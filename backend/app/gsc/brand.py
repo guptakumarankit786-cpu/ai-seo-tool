@@ -8,7 +8,7 @@ the property's brand terms (normalised the same way). So the term "acme co" matc
 import re
 from urllib.parse import urlsplit
 
-from sqlalchemy import ColumnElement, false, func, or_
+from sqlalchemy import ColumnElement, false, or_
 
 MAX_TERMS = 50
 MAX_TERM_LENGTH = 100
@@ -18,7 +18,7 @@ _GENERIC_LABELS = {"www", "shop", "store", "blog", "m", "app", "en", "in"}
 
 
 def normalize(text: str) -> str:
-    """Lower-case and strip whitespace/punctuation — mirrors normalized_sql()."""
+    """Lower-case and strip whitespace/punctuation — mirrors gsc_query_metrics.query_norm."""
     return re.sub(r"[\s\W_]+", "", text.lower())
 
 
@@ -46,17 +46,12 @@ def suggest_terms(site_url: str) -> list[str]:
     return [labels[0]] if len(labels) >= 2 else labels[:1]
 
 
-def normalized_sql(column) -> ColumnElement:
-    return func.regexp_replace(func.lower(column), r"[[:space:][:punct:]]", "", "g")
-
-
-def brand_condition(column, terms: list[str]) -> ColumnElement[bool]:
-    """SQL condition: the query column matches any brand term."""
+def brand_condition(norm_column, terms: list[str]) -> ColumnElement[bool]:
+    """SQL condition: an already-normalised query column (query_norm) matches any brand term."""
     keys = [normalize(t) for t in terms if normalize(t)]
     if not keys:
         return false()
-    norm = normalized_sql(column)
-    return or_(*(norm.contains(key, autoescape=True) for key in keys))
+    return or_(*(norm_column.contains(key, autoescape=True) for key in keys))
 
 
 def effective_terms(brand_terms: list[str] | None, site_url: str) -> list[str]:

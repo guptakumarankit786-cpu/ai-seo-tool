@@ -3,7 +3,7 @@
 import logging
 from datetime import UTC, date, datetime, timedelta
 
-from sqlalchemy import delete, insert
+from sqlalchemy import delete, func, insert, select
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
@@ -24,12 +24,40 @@ DATA_LAG_DAYS = 3
 # GSC keeps 16 months of history.
 MAX_HISTORY_DAYS = 486
 INSERT_BATCH = 5_000
+# Long ranges are fetched and written a month at a time: bounded memory, visible progress,
+# and recent months land first.
+CHUNK_DAYS = 30
+# "Sync latest" re-fetches the last few stored days too, since Google can still revise them.
+LATEST_OVERLAP_DAYS = 3
 
 
 def default_range(days: int) -> tuple[date, date]:
     days = max(1, min(days, MAX_HISTORY_DAYS))
     end = date.today() - timedelta(days=DATA_LAG_DAYS)
     return end - timedelta(days=days - 1), end
+
+
+def latest_range(db: Session, property_id: int) -> tuple[date, date] | None:
+    """Range for "Sync latest": from just before the newest stored day up to today's data.
+
+    None if nothing has been synced yet (a full sync is needed first).
+    """
+    newest = db.scalar(select(func.max(GscDailyMetric.date)).where(GscDailyMetric.property_id == property_id))
+    if newest is None:
+        return None
+    _, end = default_range(1)
+    return min(newest - timedelta(days=LATEST_OVERLAP_DAYS), end), end
+
+
+def chunks(start: date, end: date) -> list[tuple[date, date]]:
+    """Split [start, end] into CHUNK_DAYS pieces, newest first."""
+    out = []
+    chunk_end = end
+    while chunk_end >= start:
+        chunk_start = max(start, chunk_end - timedelta(days=CHUNK_DAYS - 1))
+        out.append((chunk_start, chunk_end))
+        chunk_end = chunk_start - timedelta(days=1)
+    return out
 
 
 def refresh_properties(db: Session, conn: GoogleConnection) -> list[GscProperty]:
@@ -77,32 +105,43 @@ def _replace_range(db: Session, model, property_id: int, start: date, end: date,
         db.execute(insert(model), rows[i : i + INSERT_BATCH])
 
 
+def _sync_chunk(db: Session, prop: GscProperty, start: date, end: date) -> int:
+    """Fetch and replace one date range. Returns rows written. Caller commits."""
+    token = google_api.access_token_for(db, prop.connection)  # refreshes during long runs
+    written = 0
+    for model, keys in (
+        (GscDailyMetric, ["date"]),
+        (GscQueryMetric, ["date", "query"]),
+        (GscPageMetric, ["date", "page"]),
+    ):
+        rows = _metric_rows(prop.id, google_api.search_analytics(token, prop.site_url, start, end, keys), keys)
+        _replace_range(db, model, prop.id, start, end, rows)
+        written += len(rows)
+    return written
+
+
 def run_sync(run_id: int) -> None:
-    """Background job: fetch daily, query and page data for the run's date range."""
+    """Background job: fetch daily, query and page data for the run's range, a month at a time.
+
+    Each month is committed on its own, so an interrupted run keeps what it finished and a
+    re-run simply replaces those months again.
+    """
     db = SessionLocal()
     try:
         run = db.get(GscSyncRun, run_id)
         prop = db.get(GscProperty, run.property_id)
-        token = google_api.access_token_for(db, prop.connection)
-        start, end = run.start_date, run.end_date
+        parts = chunks(run.start_date, run.end_date)
+        run.chunks_total = len(parts)
+        db.commit()
 
-        daily = google_api.search_analytics(token, prop.site_url, start, end, ["date"])
-        queries = google_api.search_analytics(token, prop.site_url, start, end, ["date", "query"])
-        pages = google_api.search_analytics(token, prop.site_url, start, end, ["date", "page"])
+        for chunk_start, chunk_end in parts:
+            run.rows_written += _sync_chunk(db, prop, chunk_start, chunk_end)
+            run.chunks_done += 1
+            prop.last_synced_at = datetime.now(UTC)
+            db.commit()
 
-        daily_rows = _metric_rows(prop.id, daily, ["date"])
-        query_rows = _metric_rows(prop.id, queries, ["date", "query"])
-        page_rows = _metric_rows(prop.id, pages, ["date", "page"])
-
-        _replace_range(db, GscDailyMetric, prop.id, start, end, daily_rows)
-        _replace_range(db, GscQueryMetric, prop.id, start, end, query_rows)
-        _replace_range(db, GscPageMetric, prop.id, start, end, page_rows)
-
-        now = datetime.now(UTC)
         run.status = "success"
-        run.rows_written = len(daily_rows) + len(query_rows) + len(page_rows)
-        run.finished_at = now
-        prop.last_synced_at = now
+        run.finished_at = datetime.now(UTC)
         db.commit()
     except Exception as exc:
         log.exception("GSC sync %s failed", run_id)

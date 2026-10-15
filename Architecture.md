@@ -50,9 +50,9 @@ backend/app/
 | `oauth_states` | Short-lived CSRF state for the OAuth redirect (10 min, single use). |
 | `google_connections` | Connected Google account; **encrypted** refresh + access tokens. |
 | `gsc_properties` | Search Console properties per connection; `brand_terms` (text[], null = use domain suggestion). |
-| `gsc_sync_runs` | Performance sync jobs (status, range, rows). |
+| `gsc_sync_runs` | Performance sync jobs (status, range, rows, chunk progress). |
 | `gsc_daily_metrics` | Per-day totals (PK property+date). |
-| `gsc_query_metrics`, `gsc_page_metrics` | Per-day per-query / per-page metrics. |
+| `gsc_query_metrics`, `gsc_page_metrics` | Per-day per-query / per-page metrics; queries carry generated `query_norm`. |
 | `gsc_inspection_runs` | URL inspection jobs (known / queued / inspected / failed, quota). |
 | `gsc_url_inspections` | Latest inspection per URL (coverage state, canonicals, last crawl, in_sitemap / in_search). |
 | `gsc_indexing_exports` | Uploaded Search Console exports (`overview` or per-reason `issue`). |
@@ -64,7 +64,9 @@ Deleting a connection cascades to everything below it. Schema changes go through
 
 **OAuth connect** — `GET /api/gsc/oauth/start` stores a random state and redirects to Google (offline access, `webmasters.readonly`). Callback verifies state, exchanges the code, rejects grants without Search Console scope, encrypts tokens, fetches the email, discovers properties, redirects to `/integrations`.
 
-**Performance sync** — `POST /properties/{id}/sync` creates a run and returns 202; a background task pulls `date`, `date+query`, `date+page` (paged by 25k rows), then **replaces** that date range in one transaction (idempotent). Range ends 3 days ago (Google data lag).
+**Performance sync** — `POST /properties/{id}/sync` with `{"mode": "range", "days": 90|180|486}` or `{"mode": "latest"}` creates a run and returns 202. The range ends 3 days ago (Google data lag); `latest` starts 3 days before the newest stored day (Google may revise recent days). A background task splits the range into **30-day chunks, newest first**; for each chunk it pulls `date`, `date+query`, `date+page` (paged by 25k rows), **replaces** that chunk and commits, updating `chunks_done/chunks_total`. An interrupted run keeps finished chunks; re-running replaces them (idempotent). Full 16 months on a large site: ~2.8M rows in ~12 min.
+
+**Comparisons** — `summary` and `segments` take `compare=previous|year`. *previous* = the equal-length window before; *year* = same window 364 days earlier (weekday-aligned). If stored data doesn't reach back to the start of the comparison window, comparison totals are `null` (no partial comparisons).
 
 **Indexing inspection** — `POST /properties/{id}/indexing` (user-triggered):
 1. Discover URLs: sitemaps from the Sitemaps API (follows indexes, gzip, size/count caps) + distinct clean pages (no `?`/`#`) from performance data; scoped to the property; prune URLs no longer found.
@@ -74,7 +76,7 @@ Deleting a connection cascades to everything below it. Schema changes go through
 
 **Export upload** — `POST /properties/{id}/indexing/uploads` (multipart). Files recognised by header, not name. Property in `Metadata.csv` must match.
 
-**Brand vs non-brand** — a query is brand if `lower(query)` with spaces/punctuation removed contains any brand term normalised the same way (so "acme co" = "acmeco"). Done in SQL with `regexp_replace` at query time (~0.3 s on 140k rows), so editing terms takes effect immediately. `/segments` returns brand / non-brand totals (current + previous period), click share, a daily split, and the clicks hidden by Google (site total − query-level total). `/queries?segment=brand|non_brand` filters top queries.
+**Brand vs non-brand** — a query is brand if `query_norm` (a Postgres **generated column**: `lower(query)` with spaces/punctuation removed) contains any brand term normalised the same way (so "acme co" = "acmeco"). Matching is a plain `LIKE` at read time, so editing terms takes effect immediately; 16 months (~2.4M keyword rows) takes ~1.5 s, 28 days ~0.2 s. `/segments` returns brand / non-brand totals (current + previous period), click share, a daily split, and the clicks hidden by Google (site total − query-level total). `/queries?segment=brand|non_brand` filters top queries.
 
 **Advice** — `advice.py` normalises Google's wording (quotes, dashes, case) and maps each reason to a verdict + action; reasons sorted worth-fixing first.
 
@@ -93,6 +95,7 @@ frontend/src/
   components/ui.tsx                  Card, Button, Banner, Badge
   components/property-tabs.tsx       Performance | Indexing tabs
   components/use-sync.ts             start + poll a sync
+  components/sync-controls.tsx       sync range picker + status line (shared by Integrations and Performance)
   lib/api.ts                         typed API client + formatters
 ```
 Pages are thin server components wrapping client components in `<Suspense>` (required by `cacheComponents` for runtime params / search params). Data is fetched from the browser; running jobs are polled.
@@ -111,4 +114,4 @@ Pages are thin server components wrapping client components in `<Suspense>` (req
 ```bash
 docker compose exec backend python -m pytest -q
 ```
-110 tests: OAuth, encryption, sync, reports maths, inspection discovery/quota/ordering, export parsing, advice, brand matching/segments, endpoints. Frontend: typecheck + lint; verified manually in the browser.
+124 tests: OAuth, encryption, sync, reports maths, inspection discovery/quota/ordering, export parsing, advice, brand matching/segments, chunked/latest sync, comparisons, endpoints. Frontend: typecheck + lint; verified manually in the browser.
