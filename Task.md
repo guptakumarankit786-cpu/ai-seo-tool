@@ -12,7 +12,8 @@ _Last updated: 2026-10-15. Raw ideas live in [docs/ideas.md](docs/ideas.md); onl
 - [x] Indexing (Search Console export upload): overview + per-reason URL lists, wrong-site protection
 - [x] Worth fixing vs. safe to ignore: verdict + action per reason, sitemap-cleanup flags
 - [x] Integrations: Performance + Indexing links for every client
-- [x] Backend test suite (89 tests)
+- [x] Performance: brand vs non-brand queries — editable brand terms, segment cards, daily chart, Top queries filter, hidden-clicks note
+- [x] Backend test suite (110 tests)
 - [x] Project docs: PRD, Architecture, Rules, Design, Task, Memory
 
 ## 🔜 Next

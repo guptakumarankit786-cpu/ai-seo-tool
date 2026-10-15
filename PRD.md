@@ -37,6 +37,7 @@ The agency manages many client sites (dozens of Search Console properties) from 
 - Manual **Sync 90 days** per client: daily totals, per-query and per-page metrics.
 - Dashboard: clicks, impressions, CTR, average position (vs previous period), daily chart, top queries, top pages; 7 / 28 / 90-day views.
 - Numbers verified identical to Google's API.
+- **Brand vs non-brand queries:** per-client brand terms (pre-filled from the domain, editable — add sub-brands and misspellings); brand / non-brand cards with change vs previous period and click share; daily brand vs non-brand chart; Top queries filter (All / Brand / Non-brand). Clicks Google hides at keyword level (anonymised queries) are shown separately, not guessed.
 
 ### 4.3 Indexing — "Why pages aren't indexed" ✅
 Google offers **no API** for the Page Indexing report, so there are two sources:

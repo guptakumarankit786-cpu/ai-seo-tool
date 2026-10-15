@@ -47,7 +47,30 @@ export type Summary = {
   daily: (Totals & { date: string })[];
 };
 
-export type DimensionRow = Totals & { key: string };
+export type DimensionRow = Totals & { key: string; brand?: boolean | null };
+
+export type QuerySegment = "all" | "brand" | "non_brand";
+
+export type BrandTerms = { terms: string[]; suggested: string[]; is_default: boolean };
+
+export type SegmentTotals = { totals: Totals; previous: Totals | null; click_share: number };
+
+export type Segments = {
+  start_date: string;
+  end_date: string;
+  terms: string[];
+  brand: SegmentTotals;
+  non_brand: SegmentTotals;
+  hidden_clicks: number;
+  hidden_impressions: number;
+  daily: {
+    date: string;
+    brand_clicks: number;
+    non_brand_clicks: number;
+    brand_impressions: number;
+    non_brand_impressions: number;
+  }[];
+};
 
 export type InspectionRun = {
   id: number;
@@ -161,8 +184,18 @@ export const api = {
     }),
   summary: (id: number, days: number) =>
     request<Summary>(`/api/gsc/properties/${id}/summary?days=${days}`),
-  queries: (id: number, days: number, limit = 50) =>
-    request<DimensionRow[]>(`/api/gsc/properties/${id}/queries?days=${days}&limit=${limit}`),
+  queries: (id: number, days: number, limit = 50, segment: QuerySegment = "all") =>
+    request<DimensionRow[]>(
+      `/api/gsc/properties/${id}/queries?days=${days}&limit=${limit}&segment=${segment}`,
+    ),
+  brandTerms: (id: number) => request<BrandTerms>(`/api/gsc/properties/${id}/brand-terms`),
+  setBrandTerms: (id: number, terms: string[] | null) =>
+    request<BrandTerms>(`/api/gsc/properties/${id}/brand-terms`, {
+      method: "PUT",
+      body: JSON.stringify({ terms }),
+    }),
+  segments: (id: number, days: number) =>
+    request<Segments>(`/api/gsc/properties/${id}/segments?days=${days}`),
   pages: (id: number, days: number, limit = 50) =>
     request<DimensionRow[]>(`/api/gsc/properties/${id}/pages?days=${days}&limit=${limit}`),
   indexing: (id: number) => request<IndexingSummary>(`/api/gsc/properties/${id}/indexing`),

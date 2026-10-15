@@ -12,6 +12,14 @@ Ideas captured for later. Nothing here is implemented unless marked ✅.
 
 _Added 2026-10-15._
 
+## Performance — query types
+
+| # | Idea | Status |
+|---|------|--------|
+| 5 | **More query types** beyond brand / non-brand (e.g. questions, product, local, competitor, long-tail) as extra filters on Performance. | 💡 Later |
+
+_Added 2026-10-15._
+
 ## Indexing — "Why pages aren't indexed"
 
 | # | Idea | Status |

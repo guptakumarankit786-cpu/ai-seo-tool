@@ -13,6 +13,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -59,6 +60,8 @@ class GscProperty(Base):
     site_url: Mapped[str] = mapped_column(String(2048))
     permission_level: Mapped[str] = mapped_column(String(64))
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Terms that mark a query as "brand". Null = not set yet (a suggestion from the domain is used).
+    brand_terms: Mapped[list[str] | None] = mapped_column(ARRAY(Text))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     connection: Mapped[GoogleConnection] = relationship(back_populates="properties")

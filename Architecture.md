@@ -39,6 +39,8 @@ backend/app/
     indexing_router.py /api/gsc/properties/{id}/indexing/... inspection, export upload
     export_parser.py   Search Console Page-indexing export (ZIP/CSV) parser
     advice.py          reason → verdict (fix / review / ignore) + action
+    brand.py           brand-term normalisation, suggestion from domain, SQL match condition
+    brand_router.py    /api/gsc/properties/{id}/brand-terms, /segments
 ```
 
 ## 3. Data model
@@ -47,7 +49,7 @@ backend/app/
 |---|---|
 | `oauth_states` | Short-lived CSRF state for the OAuth redirect (10 min, single use). |
 | `google_connections` | Connected Google account; **encrypted** refresh + access tokens. |
-| `gsc_properties` | Search Console properties per connection. |
+| `gsc_properties` | Search Console properties per connection; `brand_terms` (text[], null = use domain suggestion). |
 | `gsc_sync_runs` | Performance sync jobs (status, range, rows). |
 | `gsc_daily_metrics` | Per-day totals (PK property+date). |
 | `gsc_query_metrics`, `gsc_page_metrics` | Per-day per-query / per-page metrics. |
@@ -71,6 +73,8 @@ Deleting a connection cascades to everything below it. Schema changes go through
 4. Inspect with 10 threads; access token refreshed during long runs; 429 stops the run as `partial`.
 
 **Export upload** — `POST /properties/{id}/indexing/uploads` (multipart). Files recognised by header, not name. Property in `Metadata.csv` must match.
+
+**Brand vs non-brand** — a query is brand if `lower(query)` with spaces/punctuation removed contains any brand term normalised the same way (so "acme co" = "acmeco"). Done in SQL with `regexp_replace` at query time (~0.3 s on 140k rows), so editing terms takes effect immediately. `/segments` returns brand / non-brand totals (current + previous period), click share, a daily split, and the clicks hidden by Google (site total − query-level total). `/queries?segment=brand|non_brand` filters top queries.
 
 **Advice** — `advice.py` normalises Google's wording (quotes, dashes, case) and maps each reason to a verdict + action; reasons sorted worth-fixing first.
 
@@ -107,4 +111,4 @@ Pages are thin server components wrapping client components in `<Suspense>` (req
 ```bash
 docker compose exec backend python -m pytest -q
 ```
-89 tests: OAuth, encryption, sync, reports maths, inspection discovery/quota/ordering, export parsing, advice, endpoints. Frontend: typecheck + lint; verified manually in the browser.
+110 tests: OAuth, encryption, sync, reports maths, inspection discovery/quota/ordering, export parsing, advice, brand matching/segments, endpoints. Frontend: typecheck + lint; verified manually in the browser.

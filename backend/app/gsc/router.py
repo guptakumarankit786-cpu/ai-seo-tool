@@ -1,5 +1,6 @@
 import secrets
 from datetime import UTC, date, datetime, timedelta
+from typing import Literal
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
@@ -11,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.crypto import decrypt, encrypt
 from app.db import get_db
-from app.gsc import google_api, sync
+from app.gsc import brand, google_api, sync
 from app.models import (
     GoogleConnection,
     GscDailyMetric,
@@ -87,6 +88,7 @@ class SummaryOut(BaseModel):
 
 class DimensionRow(Totals):
     key: str
+    brand: bool | None = None  # set for queries
 
 
 # ---------- helpers ----------
@@ -150,7 +152,9 @@ def _totals(db: Session, property_id: int, start: date, end: date) -> Totals | N
     )
 
 
-def _top(db: Session, model, key_col, property_id: int, days: int, limit: int) -> list[DimensionRow]:
+def _top(
+    db: Session, model, key_col, property_id: int, days: int, limit: int, *extra_where
+) -> list[DimensionRow]:
     start, end = _window(db, property_id, days)
     clicks = func.sum(model.clicks)
     impressions = func.sum(model.impressions)
@@ -161,7 +165,7 @@ def _top(db: Session, model, key_col, property_id: int, days: int, limit: int) -
             impressions,
             func.sum(model.position * model.impressions),
         )
-        .where(model.property_id == property_id, model.date >= start, model.date <= end)
+        .where(model.property_id == property_id, model.date >= start, model.date <= end, *extra_where)
         .group_by(key_col)
         .order_by(desc(clicks), desc(impressions))
         .limit(limit)
@@ -355,10 +359,17 @@ def top_queries(
     property_id: int,
     days: int = Query(28, ge=1, le=sync.MAX_HISTORY_DAYS),
     limit: int = Query(50, ge=1, le=1000),
+    segment: Literal["all", "brand", "non_brand"] = "all",
     db: Session = Depends(get_db),
 ):
-    _get_property(db, property_id)
-    return _top(db, GscQueryMetric, GscQueryMetric.query, property_id, days, limit)
+    prop = _get_property(db, property_id)
+    terms = brand.effective_terms(prop.brand_terms, prop.site_url)
+    is_brand = brand.brand_condition(GscQueryMetric.query, terms)
+    extra = {"all": [], "brand": [is_brand], "non_brand": [~is_brand]}[segment]
+    rows = _top(db, GscQueryMetric, GscQueryMetric.query, property_id, days, limit, *extra)
+    for row in rows:
+        row.brand = brand.is_brand(row.key, terms)
+    return rows
 
 
 @router.get("/properties/{property_id}/pages", response_model=list[DimensionRow])

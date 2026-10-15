@@ -22,6 +22,7 @@ _Last updated: 2026-10-15_
 | `positive` | `#15803d` | `#4ade80` | good change, indexed, safe to ignore |
 | `negative` | `#b91c1c` | `#f87171` | bad change, not indexed, worth fixing |
 | `chart-clicks` / `chart-impressions` | blue / purple | lighter variants | chart lines |
+| `chart-brand` / `chart-non-brand` | `#2563eb` / `#d97706` | `#60a5fa` / `#fbbf24` | brand (blue) vs non-brand (amber) everywhere: dots, share bars, chart lines |
 
 Use tokens through Tailwind (`bg-surface`, `text-muted`, `border-border`, `bg-negative/15`) — never hard-coded colours.
 
@@ -44,10 +45,12 @@ Use tokens through Tailwind (`bg-surface`, `text-muted`, `border-border`, `bg-ne
 | Verdict badge | 🔴 **Worth fixing** (`negative/15`), 🔵 **Check pages** (`accent-soft`), 🟢 **Safe to ignore** (`positive/15`). |
 | Expandable row | chevron + title + badges + count; opens advice box + URL table + "Show more". |
 | Progress card | text + thin accent bar, polled every 2–3 s. |
-| Segmented control | 7d / 28d / 90d ranges; "Inspected by app / Search Console export". |
+| Segmented control | 7d / 28d / 90d ranges; "Inspected by app / Search Console export"; Top queries All / Brand / Non-brand. |
+| Segment card | coloured dot + label, share-of-clicks bar, 4 metrics with change vs previous period. |
+| Terms editor | chips + Edit → comma-separated input, Save / Cancel / Reset to suggestion. |
 
 ## 5. Patterns
-- **Tables:** sticky header, truncated URLs with full URL on hover, host stripped (`/products/x`), numbers right-aligned, extra columns hidden on small screens.
+- **Tables:** `table-fixed` with narrow fixed-width number columns so the text column gets the space; sticky header, truncated URLs with full URL on hover, host stripped (`/products/x`), numbers right-aligned, extra columns hidden on small screens.
 - **Advice box:** muted summary line, then **What to do:** action; red sitemap-cleanup note when relevant.
 - **Empty states** say what to do next ("Run an inspection…", "Upload an export…").
 - **Errors** show the backend's message in plain words.

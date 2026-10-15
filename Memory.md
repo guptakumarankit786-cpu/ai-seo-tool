@@ -5,6 +5,9 @@ Decisions and learned facts, newest first. Add an entry whenever something is de
 ## 2026-10-15
 
 **Decisions**
+- Brand vs non-brand: per-client editable **brand terms**, default suggested from the domain name. Matching ignores case, spaces and punctuation. Classification runs in SQL at read time (no stored flag) so term edits apply instantly.
+- Anonymised queries: Google withholds a large share of clicks at keyword level (~30% on a real client). We show them as "hidden by Google" instead of assigning them to brand or non-brand.
+- More query types (questions, product, local, competitor…) noted as idea #5 — not built.
 - Project docs added: PRD, Architecture, Rules (for Claude), Design, Task, Memory.
 - Indexing inspections run **only when the user clicks "Inspect pages"** for a client — no bulk/auto runs.
 - Indexing has two sources: app inspection **and** Search Console export upload (user chose "both").
@@ -15,6 +18,8 @@ Decisions and learned facts, newest first. Add an entry whenever something is de
 - Use the installed Claude skills (Jeffallan/claude-skills) for every feature.
 
 **Facts learned**
+- Brand terms need sub-brands/product lines and common misspellings — a domain-only term misses them (seen on real data).
+- Tailwind classes from a newly added file may not appear in the Docker dev server until its cache is cleared: `docker compose exec frontend sh -c "rm -rf .next/*"` then restart the frontend.
 - Google has **no API for the Page Indexing report**. Options: URL Inspection API (per URL) or the Search Console export.
 - URL Inspection: 2,000 / property / day, 600 / minute, ~5–10 s per call; works for restricted users too; returns Search Console's own reason wording (curly quotes in "noindex").
 - Search performance "pages" include Shopping/free-listing URLs with `?variant=…&utm_…` → Google reports them "unknown". Only clean URLs are inspected.

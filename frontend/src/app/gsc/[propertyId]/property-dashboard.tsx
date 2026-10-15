@@ -14,6 +14,7 @@ import {
   type Summary,
   type Totals,
 } from "@/lib/api";
+import { BrandSection, QueriesTable } from "./brand-section";
 import { TrafficChart } from "./traffic-chart";
 
 const RANGES = [7, 28, 90] as const;
@@ -23,7 +24,6 @@ export function PropertyDashboard({ params }: { params: Promise<{ propertyId: st
   const [days, setDays] = useState<number>(28);
   const [property, setProperty] = useState<Property | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
-  const [queries, setQueries] = useState<DimensionRow[]>([]);
   const [pages, setPages] = useState<DimensionRow[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,12 +32,11 @@ export function PropertyDashboard({ params }: { params: Promise<{ propertyId: st
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([api.property(id), api.summary(id, days), api.queries(id, days), api.pages(id, days)])
-      .then(([p, s, q, pg]) => {
+    Promise.all([api.property(id), api.summary(id, days), api.pages(id, days)])
+      .then(([p, s, pg]) => {
         if (cancelled) return;
         setProperty(p);
         setSummary(s);
-        setQueries(q);
         setPages(pg);
         setError(null);
       })
@@ -116,8 +115,10 @@ export function PropertyDashboard({ params }: { params: Promise<{ propertyId: st
         )}
       </Card>
 
+      <BrandSection propertyId={id} days={days} version={version} onTermsChange={load} />
+
       <div className="grid gap-6 lg:grid-cols-2">
-        <DimensionTable title="Top queries" keyLabel="Query" rows={queries} />
+        <QueriesTable propertyId={id} days={days} version={version} />
         <DimensionTable title="Top pages" keyLabel="Page" rows={pages} isUrl />
       </div>
     </div>
@@ -193,14 +194,14 @@ function DimensionTable({
         <p className="px-4 pb-6 text-sm text-muted">No data in this range.</p>
       ) : (
         <div className="max-h-[480px] overflow-auto">
-          <table className="w-full text-sm">
+          <table className="w-full table-fixed text-sm">
             <thead className="sticky top-0 bg-surface text-xs text-muted">
               <tr className="border-b border-border">
                 <th className="px-4 py-2 text-left font-normal">{keyLabel}</th>
-                <th className="px-2 py-2 text-right font-normal">Clicks</th>
-                <th className="px-2 py-2 text-right font-normal">Impr.</th>
-                <th className="hidden px-2 py-2 text-right font-normal sm:table-cell">CTR</th>
-                <th className="px-4 py-2 text-right font-normal">Pos.</th>
+                <th className="w-16 px-2 py-2 text-right font-normal">Clicks</th>
+                <th className="w-20 px-2 py-2 text-right font-normal">Impr.</th>
+                <th className="hidden w-16 px-2 py-2 text-right font-normal sm:table-cell">CTR</th>
+                <th className="w-14 px-4 py-2 text-right font-normal">Pos.</th>
               </tr>
             </thead>
             <tbody className="tabular-nums">

@@ -12,6 +12,8 @@
   --negative: #b91c1c;
   --chart-clicks: #2563eb;
   --chart-impressions: #9333ea;
+  --chart-brand: #2563eb;
+  --chart-non-brand: #d97706;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -27,6 +29,8 @@
     --negative: #f87171;
     --chart-clicks: #60a5fa;
     --chart-impressions: #c084fc;
+    --chart-brand: #60a5fa;
+    --chart-non-brand: #fbbf24;
   }
 }
 
@@ -40,6 +44,8 @@
   --color-accent-soft: var(--accent-soft);
   --color-positive: var(--positive);
   --color-negative: var(--negative);
+  --color-chart-brand: var(--chart-brand);
+  --color-chart-non-brand: var(--chart-non-brand);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
