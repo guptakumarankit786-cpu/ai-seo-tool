@@ -10,6 +10,7 @@ from app.config import get_settings
 from app.db import SessionLocal
 from app.gsc.brand_router import router as gsc_brand_router
 from app.gsc.indexing_router import router as gsc_indexing_router
+from app.gsc.keywords_router import router as gsc_keywords_router
 from app.gsc.router import router as gsc_router
 from app.models import GscInspectionRun, GscSyncRun
 
@@ -43,6 +44,7 @@ app.add_middleware(
 app.include_router(gsc_router)
 app.include_router(gsc_indexing_router)
 app.include_router(gsc_brand_router)
+app.include_router(gsc_keywords_router)
 
 
 @app.get("/api/health")

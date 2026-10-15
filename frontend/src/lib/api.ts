@@ -84,6 +84,65 @@ export type Segments = {
   }[];
 };
 
+export type KeywordType =
+  | "long_tail"
+  | "question"
+  | "buying"
+  | "new"
+  | "lost"
+  | "rising"
+  | "declining"
+  | "low_ctr"
+  | "zero_clicks"
+  | "high_performance";
+
+export type KeywordSort = "clicks" | "impressions" | "ctr" | "position" | "click_change" | "query";
+
+export type KeywordRow = Totals & {
+  query: string;
+  position: number | null;
+  prev_clicks: number | null;
+  prev_impressions: number | null;
+  prev_position: number | null;
+  click_change: number;
+  expected_ctr: number | null;
+  brand: boolean;
+  types: KeywordType[];
+};
+
+export type KeywordsResponse = {
+  start_date: string;
+  end_date: string;
+  compare: Compare;
+  compare_available: boolean;
+  new_available: boolean;
+  definitions: {
+    long_tail_words: number;
+    new_lookback_days: number;
+    mover_min_clicks: number;
+    mover_min_share: number;
+    low_ctr_max_position: number;
+    low_ctr_factor: number;
+    min_impressions: number;
+    high_performance_share: number;
+  };
+  counts: Record<"all" | KeywordType, number>;
+  total: number;
+  items: KeywordRow[];
+};
+
+export type KeywordQuery = {
+  days: number;
+  compare: Compare;
+  segment: QuerySegment;
+  types: KeywordType[];
+  search: string;
+  sort: KeywordSort;
+  order: "asc" | "desc";
+  limit: number;
+  offset: number;
+};
+
 export type InspectionRun = {
   id: number;
   status: "running" | "success" | "partial" | "failed";
@@ -210,6 +269,20 @@ export const api = {
     request<Segments>(`/api/gsc/properties/${id}/segments?days=${days}&compare=${compare}`),
   pages: (id: number, days: number, limit = 50) =>
     request<DimensionRow[]>(`/api/gsc/properties/${id}/pages?days=${days}&limit=${limit}`),
+  keywords: (id: number, q: KeywordQuery) => {
+    const params = new URLSearchParams({
+      days: String(q.days),
+      compare: q.compare,
+      segment: q.segment,
+      sort: q.sort,
+      order: q.order,
+      limit: String(q.limit),
+      offset: String(q.offset),
+    });
+    q.types.forEach((t) => params.append("types", t));
+    if (q.search.trim()) params.set("search", q.search.trim());
+    return request<KeywordsResponse>(`/api/gsc/properties/${id}/keywords?${params}`);
+  },
   indexing: (id: number) => request<IndexingSummary>(`/api/gsc/properties/${id}/indexing`),
   startInspection: (id: number) =>
     request<InspectionRun>(`/api/gsc/properties/${id}/indexing`, { method: "POST" }),

@@ -5,6 +5,9 @@ Decisions and learned facts, newest first. Add an entry whenever something is de
 ## 2026-10-15
 
 **Decisions**
+- Keyword types are combinable chips (AND). Definitions live in `backend/app/gsc/keywords.py` and PRD §4.3.
+- Low CTR uses the site's **own** typical CTR per position — overall clicks ÷ impressions (not the median), brand vs non-brand separately.
+- Tagged keyword sets are cached per (window, comparison, look-back, brand terms) and served from the cache; the 28-day set is pre-built after each sync.
 - 16-month sync is chunked by 30 days, newest first, committed per chunk; "Latest days" re-fetches 3 days of overlap.
 - Year-over-year = same window 364 days earlier (weekday-aligned). No comparison is shown when stored history only partly covers the comparison window.
 - Keyword text is normalised once in a Postgres generated column (`query_norm`) — reused for brand matching and the upcoming keyword views.
@@ -26,6 +29,10 @@ Decisions and learned facts, newest first. Add an entry whenever something is de
 - Use the installed Claude skills (Jeffallan/claude-skills) for every feature.
 
 **Facts learned**
+- On real data most keywords at positions 5–10 have zero clicks → the **median** CTR there is 0%, which made a median-based low-CTR rule blind. Use clicks ÷ impressions.
+- Postgres regex alternations with word boundaries cost ~70–100 µs per keyword; splitting into words once and using array overlap is ~20× faster. Postgres JIT also added ~1.5 s to the tagging query because of bad row estimates — disabled for that statement.
+- Keyword tagging cost (large site): first build ~3 s (7d) / ~6 s (28d) / ~14 s (3m) / ~25–45 s (16m); cached filters ~0.1 s; cache ≈ 77 MB for 5 ranges.
+- Null-safety matters for cached flags (e.g. a keyword "." has no words; lost keywords have no current impressions) — flags default to false.
 - Google returns the full 486 days (16 months) of performance data.
 - **Google caps keyword rows at 5,000 per day** (date+query), regardless of request size. On a large site the cut-off keywords had **zero clicks** — clicks are unaffected. Splitting by device recovers ~20% more impression-only long-tail keywords (+36% rows); revisit for long-tail/question views.
 - 16 months on a large site ≈ 2.8M rows, ~12 min to sync; regex-at-read brand matching took 12–14 s → generated column brought it to ~1.5 s.

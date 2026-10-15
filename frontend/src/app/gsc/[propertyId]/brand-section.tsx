@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   CartesianGrid,
@@ -305,7 +306,12 @@ export function QueriesTable({ propertyId, days, version }: { propertyId: number
   return (
     <Card className="overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-4 pb-3">
-        <h2 className="text-sm font-medium">Top queries</h2>
+        <div className="flex items-baseline gap-3">
+          <h2 className="text-sm font-medium">Top queries</h2>
+          <Link href={`/gsc/${propertyId}/keywords`} className="text-xs text-accent hover:underline">
+            View all keywords →
+          </Link>
+        </div>
         <div className="flex rounded-md border border-border p-0.5 text-xs" role="tablist">
           {SEGMENTS.map((s) => (
             <button

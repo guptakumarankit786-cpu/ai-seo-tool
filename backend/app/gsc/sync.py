@@ -7,7 +7,7 @@ from sqlalchemy import delete, func, insert, select
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
-from app.gsc import google_api
+from app.gsc import google_api, keywords
 from app.models import (
     GoogleConnection,
     GscDailyMetric,
@@ -143,6 +143,13 @@ def run_sync(run_id: int) -> None:
         run.status = "success"
         run.finished_at = datetime.now(UTC)
         db.commit()
+
+        # Make the Keywords tab's default view instant. A failure here must not fail the sync.
+        try:
+            keywords.warm_default_cache(db, prop)
+        except Exception:
+            log.exception("Warming keyword cache after sync %s failed", run_id)
+            db.rollback()
     except Exception as exc:
         log.exception("GSC sync %s failed", run_id)
         db.rollback()

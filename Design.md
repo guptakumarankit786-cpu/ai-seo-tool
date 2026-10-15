@@ -31,7 +31,7 @@ Use tokens through Tailwind (`bg-surface`, `text-muted`, `border-border`, `bg-ne
 ## 3. Layout
 - Left sidebar (`md:w-56`) with app name + nav; becomes a top bar on mobile.
 - Content max width: `max-w-4xl` (Integrations), `max-w-6xl` (client pages). Spacing `space-y-6` between sections.
-- Client pages: back link → title + property badge → **Performance | Indexing** tabs → content.
+- Client pages: back link → title + property badge → **Performance | Keywords | Indexing** tabs → content.
 
 ## 4. Components (`frontend/src/components/ui.tsx`)
 | Component | Notes |
@@ -49,6 +49,8 @@ Use tokens through Tailwind (`bg-surface`, `text-muted`, `border-border`, `bg-ne
 | Segment card | coloured dot + label, share-of-clicks bar, 4 metrics with change vs previous period. |
 | Sync controls | select (Latest days / 3 / 6 / 16 months) + Sync button; status line underneath ("Data Jun 14, 2025 – Oct 12 · synced …", or "Syncing — month 4 of 17…"). |
 | Compare select | "Compare: previous period / same period last year"; KPI deltas say "vs previous period" / "vs last year"; chart shows the comparison as dashed, faded lines. |
+| Filter chips | rounded pills "Label count"; active = accent border + soft fill; disabled (40% opacity, "—") when history is missing; selected chips' definitions listed underneath; "Clear". |
+| Keyword row | brand / non-brand dot, keyword, small type tags underneath; Change coloured green/red; CTR shows "typical x%" under low-CTR rows; sortable headers with ↑/↓. |
 | Terms editor | chips + Edit → comma-separated input, Save / Cancel / Reset to suggestion. |
 
 ## 5. Patterns

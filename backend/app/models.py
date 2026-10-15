@@ -224,3 +224,52 @@ class GscIndexingExportUrl(Base):
     export_id: Mapped[int] = mapped_column(ForeignKey("gsc_indexing_exports.id", ondelete="CASCADE"), index=True)
     url: Mapped[str] = mapped_column(Text)
     last_crawled: Mapped[date | None] = mapped_column(Date)
+
+
+class GscKeywordCacheEntry(Base):
+    """One tagged keyword-explorer result set, keyed by window/compare/brand terms.
+
+    Building the set takes seconds on large sites; filtering, sorting and paging it is cheap,
+    so the explorer reuses it until the property is re-synced or the key changes.
+    """
+
+    __tablename__ = "gsc_keyword_cache_entries"
+    __table_args__ = (UniqueConstraint("property_id", "cache_key"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    property_id: Mapped[int] = mapped_column(ForeignKey("gsc_properties.id", ondelete="CASCADE"))
+    cache_key: Mapped[str] = mapped_column(String(255))
+    built_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class GscKeywordCacheRow(Base):
+    """Rows of a cached keyword set. UNLOGGED: it's a rebuildable cache, so skip WAL writes."""
+
+    __tablename__ = "gsc_keyword_cache_rows"
+    __table_args__ = {"prefixes": ["UNLOGGED"]}
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    entry_id: Mapped[int] = mapped_column(
+        ForeignKey("gsc_keyword_cache_entries.id", ondelete="CASCADE"), index=True
+    )
+    query: Mapped[str] = mapped_column(Text)
+    clicks: Mapped[int] = mapped_column(Integer)
+    impressions: Mapped[int] = mapped_column(Integer)
+    ctr: Mapped[float] = mapped_column(Float)
+    position: Mapped[float | None] = mapped_column(Float)
+    prev_clicks: Mapped[int | None] = mapped_column(Integer)
+    prev_impressions: Mapped[int | None] = mapped_column(Integer)
+    prev_position: Mapped[float | None] = mapped_column(Float)
+    expected_ctr: Mapped[float | None] = mapped_column(Float)
+    click_change: Mapped[int] = mapped_column(Integer)
+    brand: Mapped[bool] = mapped_column(Boolean)
+    t_long_tail: Mapped[bool] = mapped_column(Boolean)
+    t_question: Mapped[bool] = mapped_column(Boolean)
+    t_buying: Mapped[bool] = mapped_column(Boolean)
+    t_new: Mapped[bool] = mapped_column(Boolean)
+    t_lost: Mapped[bool] = mapped_column(Boolean)
+    t_rising: Mapped[bool] = mapped_column(Boolean)
+    t_declining: Mapped[bool] = mapped_column(Boolean)
+    t_low_ctr: Mapped[bool] = mapped_column(Boolean)
+    t_zero_clicks: Mapped[bool] = mapped_column(Boolean)
+    t_high_performance: Mapped[bool] = mapped_column(Boolean)

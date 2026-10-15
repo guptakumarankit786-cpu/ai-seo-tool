@@ -38,6 +38,7 @@ docker compose exec backend python -m pytest -q
 | Google Search Console connection (OAuth, property list, dashboard) | ✅ |
 | 16 months of performance data (3/6/16-month or latest-days sync, year-over-year comparison) | ✅ |
 | Brand vs non-brand keywords | ✅ |
+| Keywords tab: high performance, questions, buying intent, long-tail, new, lost, rising, declining, low CTR, zero clicks | ✅ |
 | Indexing — "Why pages aren't indexed" via URL Inspection (sitemaps + search pages, 2,000/day quota) | ✅ |
 | Indexing — upload Search Console's Page indexing export (overview + per-reason URL lists) | ✅ |
 | Indexing — "worth fixing vs. safe to ignore" advice per reason | ✅ |

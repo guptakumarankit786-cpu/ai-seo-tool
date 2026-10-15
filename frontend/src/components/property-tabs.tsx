@@ -2,6 +2,7 @@ import Link from "next/link";
 
 const TABS = [
   { key: "performance", label: "Performance", path: "" },
+  { key: "keywords", label: "Keywords", path: "/keywords" },
   { key: "indexing", label: "Indexing", path: "/indexing" },
 ] as const;
 

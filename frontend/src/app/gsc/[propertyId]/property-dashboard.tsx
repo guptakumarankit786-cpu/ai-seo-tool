@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { use, useCallback, useEffect, useState } from "react";
 import { PropertyTabs } from "@/components/property-tabs";
+import { COMPARE_LABEL, RangeControls } from "@/components/range-controls";
 import { SyncControls, SyncStatus } from "@/components/sync-controls";
 import { Badge, Banner, Card } from "@/components/ui";
 import { useSync } from "@/components/use-sync";
@@ -19,16 +20,6 @@ import {
 import { BrandSection, QueriesTable } from "./brand-section";
 import { TrafficChart } from "./traffic-chart";
 
-const RANGES = [
-  { days: 7, label: "7d" },
-  { days: 28, label: "28d" },
-  { days: 90, label: "3m" },
-  { days: 180, label: "6m" },
-  { days: 365, label: "12m" },
-  { days: 486, label: "16m" },
-] as const;
-
-const COMPARE_LABEL: Record<Compare, string> = { previous: "vs previous period", year: "vs last year" };
 
 export function PropertyDashboard({ params }: { params: Promise<{ propertyId: string }> }) {
   const id = Number(use(params).propertyId);
@@ -84,29 +75,7 @@ export function PropertyDashboard({ params }: { params: Promise<{ propertyId: st
         <SyncBar property={property} onDone={load} />
       </header>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex rounded-md border border-border bg-surface p-0.5" role="group" aria-label="Date range">
-          {RANGES.map((r) => (
-            <button
-              key={r.days}
-              onClick={() => setDays(r.days)}
-              aria-pressed={days === r.days}
-              className={`rounded px-3 py-1 text-sm ${days === r.days ? "bg-accent-soft font-medium text-accent" : "text-muted hover:text-foreground"}`}
-            >
-              {r.label}
-            </button>
-          ))}
-        </div>
-        <select
-          aria-label="Compare with"
-          value={compare}
-          onChange={(e) => setCompare(e.target.value as Compare)}
-          className="rounded-md border border-border bg-surface px-2 py-1.5 text-sm"
-        >
-          <option value="previous">Compare: previous period</option>
-          <option value="year">Compare: same period last year</option>
-        </select>
-      </div>
+      <RangeControls days={days} onDays={setDays} compare={compare} onCompare={setCompare} />
 
       <PropertyTabs propertyId={id} active="performance" />
 

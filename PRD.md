@@ -41,7 +41,24 @@ The agency manages many client sites (dozens of Search Console properties) from 
 - Numbers verified identical to Google's API.
 - **Brand vs non-brand queries:** per-client brand terms (pre-filled from the domain, editable — add sub-brands and misspellings); brand / non-brand cards with change vs previous period and click share; daily brand vs non-brand chart; Top queries filter (All / Brand / Non-brand). Clicks Google hides at keyword level (anonymised queries) are shown separately, not guessed.
 
-### 4.3 Indexing — "Why pages aren't indexed" ✅
+### 4.3 Keywords ✅
+A **Keywords** tab per client lists every keyword Google reported for the chosen range (7d–16m), with All / Brand / Non-brand, search, sortable columns, change vs the comparison period, and **combinable filter chips with counts**:
+
+| Filter | Rule |
+|---|---|
+| High performance | The keywords that together bring 80% of clicks |
+| Questions | how/what/why/when/where/which/who…, starts with can/should/is/do…, "?", "ways to", "tips for", "guide to", "meaning of" |
+| Buying intent | buy, price, cost, cheap, discount, offer, deal, coupon, sale, best, top, review, vs, compare, alternative, online, delivery, COD, near me, free shipping… |
+| Long-tail | 4+ words |
+| New | Impressions now, none in the 90 days before |
+| Lost | Clicks in the comparison period, none now |
+| Rising / Declining | Clicks changed by ≥ 3 and ≥ 20% vs the comparison period |
+| Low CTR | Top-10 position, enough impressions (100 per 28 days), CTR under half of the site's own typical CTR at that position — brand and non-brand judged separately |
+| Zero clicks | Enough impressions, no clicks |
+
+Comparison-based filters are disabled when stored history doesn't cover the comparison window. The first time a range is opened the keyword set is built (seconds to ~45 s for 16 months on very large sites); after that every filter, sort, search and page is instant. The 28-day set is pre-built at the end of each sync.
+
+### 4.4 Indexing — "Why pages aren't indexed" ✅
 Google offers **no API** for the Page Indexing report, so there are two sources:
 
 **a) Inspected by app**
@@ -60,7 +77,7 @@ Google offers **no API** for the Page Indexing report, so there are two sources:
 - Every reason gets a verdict — **Worth fixing / Check pages / Safe to ignore** — with a one-line explanation and a concrete action.
 - Flags sitemap URLs that shouldn't be in the sitemap (redirects, noindex, 404, etc.).
 
-### 4.4 Planned
+### 4.5 Planned
 See [Task.md](Task.md) for the ordered backlog and [docs/ideas.md](docs/ideas.md) for raw ideas.
 Highlights: keyword views (new, striking distance, long-tail, questions, buying intent…), automatic scheduled syncs, more data sources.
 

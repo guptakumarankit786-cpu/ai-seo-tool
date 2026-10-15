@@ -41,6 +41,8 @@ backend/app/
     advice.py          reason → verdict (fix / review / ignore) + action
     brand.py           brand-term normalisation, suggestion from domain, SQL match condition
     brand_router.py    /api/gsc/properties/{id}/brand-terms, /segments
+    keywords.py        keyword-type definitions, tagging SQL, cache build + filter/sort/page
+    keywords_router.py /api/gsc/properties/{id}/keywords
 ```
 
 ## 3. Data model
@@ -55,6 +57,8 @@ backend/app/
 | `gsc_query_metrics`, `gsc_page_metrics` | Per-day per-query / per-page metrics; queries carry generated `query_norm`. |
 | `gsc_inspection_runs` | URL inspection jobs (known / queued / inspected / failed, quota). |
 | `gsc_url_inspections` | Latest inspection per URL (coverage state, canonicals, last crawl, in_sitemap / in_search). |
+| `gsc_keyword_cache_entries` | One cached tagged keyword set per (property, window, comparison, look-back, brand terms) — max 8 per property. |
+| `gsc_keyword_cache_rows` | **UNLOGGED** rows of a cached set: metrics, comparison metrics, typical CTR, brand flag, `t_<type>` flags. |
 | `gsc_indexing_exports` | Uploaded Search Console exports (`overview` or per-reason `issue`). |
 | `gsc_indexing_export_reasons`, `gsc_indexing_export_urls` | Parsed rows of those uploads. |
 
@@ -78,6 +82,8 @@ Deleting a connection cascades to everything below it. Schema changes go through
 
 **Brand vs non-brand** — a query is brand if `query_norm` (a Postgres **generated column**: `lower(query)` with spaces/punctuation removed) contains any brand term normalised the same way (so "acme co" = "acmeco"). Matching is a plain `LIKE` at read time, so editing terms takes effect immediately; 16 months (~2.4M keyword rows) takes ~1.5 s, 28 days ~0.2 s. `/segments` returns brand / non-brand totals (current + previous period), click share, a daily split, and the clicks hidden by Google (site total − query-level total). `/queries?segment=brand|non_brand` filters top queries.
 
+**Keyword explorer** — `GET /properties/{id}/keywords?days&compare&segment&types&search&sort&order&limit&offset`. One SQL statement aggregates queries for the current window, the comparison window and a 90-day "new" look-back (each only if stored history covers it), joins them, computes the site's typical CTR per rounded position separately for brand / non-brand (clicks ÷ impressions of keywords with ≥ 50 impressions, ≥ 5 keywords per position), a running click total for the 80% high-performance cut, and splits each keyword into words once (`regexp_split_to_array`) so question / buying matching is word-list overlap (`&&`) plus a few `LIKE` phrases. The result is inserted into the cache tables (JIT off, larger `work_mem` for that statement); filters/sort/paging then read the cache (~0.1 s). Cache entries are rebuilt when older than `last_synced_at`; brand-term changes produce a new key; `run_sync` pre-builds the default 28-day set.
+
 **Advice** — `advice.py` normalises Google's wording (quotes, dashes, case) and maps each reason to a verdict + action; reasons sorted worth-fixing first.
 
 ## 5. Background jobs
@@ -91,10 +97,12 @@ frontend/src/
   app/layout.tsx                     sidebar shell
   app/integrations/                  connect Google, list properties, sync
   app/gsc/[propertyId]/              Performance dashboard
+  app/gsc/[propertyId]/keywords/     Keywords explorer (filter chips, search, sort, paging)
   app/gsc/[propertyId]/indexing/     Indexing (inspected / export, advice)
   components/ui.tsx                  Card, Button, Banner, Badge
   components/property-tabs.tsx       Performance | Indexing tabs
   components/use-sync.ts             start + poll a sync
+  components/range-controls.tsx      date range + comparison controls (Performance, Keywords)
   components/sync-controls.tsx       sync range picker + status line (shared by Integrations and Performance)
   lib/api.ts                         typed API client + formatters
 ```
@@ -114,4 +122,4 @@ Pages are thin server components wrapping client components in `<Suspense>` (req
 ```bash
 docker compose exec backend python -m pytest -q
 ```
-124 tests: OAuth, encryption, sync, reports maths, inspection discovery/quota/ordering, export parsing, advice, brand matching/segments, chunked/latest sync, comparisons, endpoints. Frontend: typecheck + lint; verified manually in the browser.
+146 tests: OAuth, encryption, sync, reports maths, inspection discovery/quota/ordering, export parsing, advice, brand matching/segments, chunked/latest sync, comparisons, keyword types/filters/cache, endpoints. Frontend: typecheck + lint; verified manually in the browser.
