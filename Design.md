@@ -49,9 +49,11 @@ Use tokens through Tailwind (`bg-surface`, `text-muted`, `border-border`, `bg-ne
 | Segment card | coloured dot + label, share-of-clicks bar, 4 metrics with change vs previous period. |
 | Sync controls | select (Latest days / 3 / 6 / 16 months) + Sync button; status line underneath ("Data Jun 14, 2025 – Oct 12 · synced …", or "Syncing — month 4 of 17…"). |
 | Compare select | "Compare: previous period / same period last year"; KPI deltas say "vs previous period" / "vs last year"; chart shows the comparison as dashed, faded lines. |
-| View switch | "All keywords / Striking distance / Cannibalisation" outlined buttons above the range controls. |
+| View switch | "All keywords / Striking distance / Cannibalisation / Seasonal / Spikes" outlined buttons above the range controls (Seasonal/Spikes replace the range controls with "Uses all stored history"). |
 | Striking row | keyword (brand dot) with its ranking page underneath (accent link, "+n other pages"); Potential in green "+n". |
 | Cannibal item | keyword + "impr · clicks · n pages"; per page: share bar, %, impressions, clicks, position; green "Likely sitelinks — usually fine" pill. |
+| Month bars | tiny bar per month (h-8); peak / spike months in accent, others muted; tooltip with month + impressions. |
+| Season status pill | Coming up (red), In season (green), Off season (muted). |
 | Filter chips | rounded pills "Label count"; active = accent border + soft fill; disabled (40% opacity, "—") when history is missing; selected chips' definitions listed underneath; "Clear". |
 | Keyword row | brand / non-brand dot, keyword, small type tags underneath; Change coloured green/red; CTR shows "typical x%" under low-CTR rows; sortable headers with ↑/↓. |
 | Terms editor | chips + Edit → comma-separated input, Save / Cancel / Reset to suggestion. |

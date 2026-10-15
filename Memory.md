@@ -5,6 +5,7 @@ Decisions and learned facts, newest first. Add an entry whenever something is de
 ## 2026-10-15
 
 **Decisions**
+- Seasonal = peak repeats in the same calendar month in both years (local peak, ≥ 2× median, ≥ 100); plus a separate **Spikes** view (user chose "Seasonal + Spikes"). Competitor terms are user-entered per client (no suggestion).
 - Striking distance & cannibalisation use query+page data pulled **live** and cached (until next sync / 24 h); limited to ≤ 90 days. Shopping URLs (with `?`) excluded. 3+ competing pages all in the top 3 = "likely sitelinks", flagged as fine.
 - Keyword types are combinable chips (AND). Definitions live in `backend/app/gsc/keywords.py` and PRD §4.3.
 - Low CTR uses the site's **own** typical CTR per position — overall clicks ÷ impressions (not the median), brand vs non-brand separately.
@@ -30,6 +31,9 @@ Decisions and learned facts, newest first. Add an entry whenever something is de
 - Use the installed Claude skills (Jeffallan/claude-skills) for every feature.
 
 **Facts learned**
+- A naive "half the year's impressions in 3 months" rule flags mostly one-off spikes (spam such as betting-app searches, short ranking jumps), not seasons. With 16 months only ~3 calendar months appear twice — true seasonality needs stored history beyond Google's window.
+- Spikes surface spam/bot and junk searches (betting apps, adult terms, `site:` operator queries) — useful hygiene signal.
+- Monthly aggregation of ~2.4M keyword rows takes ~14 s → cached per property after each sync.
 - Live query+page pull on a large site: 28 d ≈ 68k rows / 6 s; 3 m ≈ 154k rows / 30 s.
 - Postgres row estimates on freshly inserted / CTE data were off by 1000×+, turning joins into nested loops that ran for minutes. Fixes that worked: `ANALYZE` after bulk insert, window functions instead of self-joins, and passing small lookups (typical CTR) as parameters.
 - Cannibalisation on brand / navigational searches is mostly Google sitelinks (many pages at position ~1) — not a real problem.

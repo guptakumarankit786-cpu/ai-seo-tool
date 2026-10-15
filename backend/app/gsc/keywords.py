@@ -61,6 +61,7 @@ KeywordType = Literal[
     "low_ctr",
     "zero_clicks",
     "high_performance",
+    "competitor",
 ]
 KEYWORD_TYPES: tuple[str, ...] = get_args(KeywordType)
 Segment = Literal["all", "brand", "non_brand"]
@@ -98,7 +99,7 @@ def window_for(start: date, end: date, compare_start: date, compare_end: date, f
     )
 
 
-def brand_sql(terms: list[str], params: dict, column: str = "norm") -> str:
+def brand_sql(terms: list[str], params: dict, column: str = "norm", prefix: str = "brand") -> str:
     """SQL boolean: the normalised-query `column` contains any brand term (adds bind params)."""
     keys = [brand.normalize(t) for t in terms if brand.normalize(t)]
     if not keys:
@@ -106,12 +107,12 @@ def brand_sql(terms: list[str], params: dict, column: str = "norm") -> str:
     clauses = []
     for i, key in enumerate(keys):
         escaped = key.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-        params[f"brand_{i}"] = f"%{escaped}%"
-        clauses.append(f"{column} like :brand_{i}")
+        params[f"{prefix}_{i}"] = f"%{escaped}%"
+        clauses.append(f"{column} like :{prefix}_{i}")
     return "(" + " or ".join(clauses) + ")"
 
 
-def _tagged_sql(win: Window, terms: list[str], days: int, params: dict) -> str:
+def _tagged_sql(win: Window, terms: list[str], competitors: list[str], days: int, params: dict) -> str:
     """One row per keyword: metrics, comparison metrics, brand flag and t_<type> flags."""
     params.update(
         start=win.start,
@@ -238,7 +239,8 @@ def _tagged_sql(win: Window, terms: list[str], days: int, params: dict) -> str:
                coalesce(impressions >= :min_impr and position <= :low_ctr_pos
                         and ctr < :low_ctr_factor * expected_ctr, false) as t_low_ctr,
                impressions >= :min_impr and clicks = 0 as t_zero_clicks,
-               clicks > 0 and clicks_before < :hp_share * total_clicks as t_high_performance
+               clicks > 0 and clicks_before < :hp_share * total_clicks as t_high_performance,
+               {brand_sql(competitors, params, prefix="competitor")} as t_competitor
         from tok
     """
 
@@ -257,14 +259,24 @@ _INSERT_SELECT = (
 )
 
 
-def cache_key(win: Window, days: int, terms: list[str]) -> str:
-    parts = [win.start, win.end, win.compare_start, win.lookback_start, days, sorted(brand.normalize(t) for t in terms)]
+def cache_key(win: Window, days: int, terms: list[str], competitors: list[str]) -> str:
+    parts = [
+        win.start,
+        win.end,
+        win.compare_start,
+        win.lookback_start,
+        days,
+        sorted(brand.normalize(t) for t in terms),
+        sorted(brand.normalize(t) for t in competitors),
+    ]
     return hashlib.sha256(repr(parts).encode()).hexdigest()
 
 
-def _cached_entry(db: Session, property_id: int, win: Window, days: int, terms: list[str], synced_at) -> int:
+def _cached_entry(
+    db: Session, property_id: int, win: Window, days: int, terms: list[str], competitors: list[str], synced_at
+) -> int:
     """Id of a cache entry for this key, (re)building it if missing or older than the last sync."""
-    key = cache_key(win, days, terms)
+    key = cache_key(win, days, terms, competitors)
     entry = db.scalars(
         select(GscKeywordCacheEntry).where(
             GscKeywordCacheEntry.property_id == property_id, GscKeywordCacheEntry.cache_key == key
@@ -284,7 +296,7 @@ def _cached_entry(db: Session, property_id: int, win: Window, days: int, terms: 
     db.add(entry)
     db.flush()
     params: dict = {"pid": property_id, "entry_id": entry.id}
-    tagged = _tagged_sql(win, terms, days, params)
+    tagged = _tagged_sql(win, terms, competitors, days, params)
     db.execute(
         text(
             f"insert into gsc_keyword_cache_rows (entry_id, {_ROW_COLUMNS}) "
@@ -312,6 +324,7 @@ def explore(
     win: Window,
     days: int,
     terms: list[str],
+    competitors: list[str],
     synced_at,
     segment: Segment,
     types: list[str],
@@ -322,7 +335,7 @@ def explore(
     offset: int,
 ) -> tuple[dict[str, int], int, list[dict]]:
     """Returns (counts per type within the brand segment, total matching rows, one page of rows)."""
-    entry_id = _cached_entry(db, property_id, win, days, terms, synced_at)
+    entry_id = _cached_entry(db, property_id, win, days, terms, competitors, synced_at)
 
     seg_where = {"all": "true", "brand": "brand", "non_brand": "not brand"}[segment]
     # Lost keywords have no current impressions; they're only listed when "lost" is selected.
@@ -377,4 +390,12 @@ def warm_default_cache(db: Session, prop) -> None:
         return
     start = last - timedelta(days=DEFAULT_DAYS - 1)
     win = window_for(start, last, start - timedelta(days=DEFAULT_DAYS), start - timedelta(days=1), first)
-    _cached_entry(db, prop.id, win, DEFAULT_DAYS, brand.effective_terms(prop.brand_terms, prop.site_url), prop.last_synced_at)
+    _cached_entry(
+        db,
+        prop.id,
+        win,
+        DEFAULT_DAYS,
+        brand.effective_terms(prop.brand_terms, prop.site_url),
+        prop.competitor_terms or [],
+        prop.last_synced_at,
+    )

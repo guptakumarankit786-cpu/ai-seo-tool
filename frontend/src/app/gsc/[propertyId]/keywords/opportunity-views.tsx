@@ -30,7 +30,7 @@ function PageLink({ url }: { url: string }) {
   );
 }
 
-function BrandDot({ brand }: { brand: boolean }) {
+export function BrandDot({ brand }: { brand: boolean }) {
   return (
     <span
       className={`h-2 w-2 shrink-0 rounded-full ${brand ? "bg-chart-brand" : "bg-chart-non-brand"}`}
@@ -61,7 +61,7 @@ export function RangeTooLong({ onPick }: { onPick: (days: number) => void }) {
 }
 
 /** Generic paged loader: first page on filter change, "Show more" appends. */
-function usePaged<T, R extends { total: number; items: T[] }>(
+export function usePaged<T, R extends { total: number; items: T[] }>(
   fetchPage: (offset: number) => Promise<R>,
   deps: unknown[],
 ) {
@@ -100,7 +100,7 @@ function usePaged<T, R extends { total: number; items: T[] }>(
   return { data, rows, error, loading: doneKey !== key, more: () => setOffset(rows.length) };
 }
 
-function Footer({ shown, total, loading, onMore }: { shown: number; total: number; loading: boolean; onMore: () => void }) {
+export function Footer({ shown, total, loading, onMore }: { shown: number; total: number; loading: boolean; onMore: () => void }) {
   if (shown >= total) return null;
   return (
     <div className="flex items-center justify-between px-4 py-2 text-xs text-muted">

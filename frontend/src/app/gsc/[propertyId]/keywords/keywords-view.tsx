@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
 import { PropertyTabs } from "@/components/property-tabs";
+import { TermsEditor } from "@/components/terms-editor";
 import { COMPARE_LABEL, RangeControls } from "@/components/range-controls";
 import { Badge, Banner, Button, Card } from "@/components/ui";
 import {
@@ -19,15 +20,18 @@ import {
   type QuerySegment,
   OPPORTUNITY_MAX_DAYS,
 } from "@/lib/api";
+import { SeasonalPanel, SpikesPanel } from "./monthly-views";
 import { CannibalPanel, RangeTooLong, StrikingPanel } from "./opportunity-views";
 
 const PAGE_SIZE = 100;
 
-type View = "all" | "striking" | "cannibal";
+type View = "all" | "striking" | "cannibal" | "seasonal" | "spikes";
 const VIEWS: { key: View; label: string }[] = [
   { key: "all", label: "All keywords" },
   { key: "striking", label: "Striking distance" },
   { key: "cannibal", label: "Cannibalisation" },
+  { key: "seasonal", label: "Seasonal" },
+  { key: "spikes", label: "Spikes" },
 ];
 
 const TYPE_LABEL: Record<KeywordType, string> = {
@@ -41,6 +45,7 @@ const TYPE_LABEL: Record<KeywordType, string> = {
   declining: "Declining",
   low_ctr: "Low CTR",
   zero_clicks: "Zero clicks",
+  competitor: "Competitors",
 };
 const TYPE_ORDER = Object.keys(TYPE_LABEL) as KeywordType[];
 const NEEDS_COMPARE: KeywordType[] = ["lost", "rising", "declining"];
@@ -58,6 +63,7 @@ function describe(type: KeywordType, d: KeywordsResponse["definitions"], compare
     declining: `Clicks down by at least ${d.mover_min_clicks} and ${d.mover_min_share * 100}% ${vs}.`,
     low_ctr: `Top-${d.low_ctr_max_position} position with ${d.min_impressions}+ impressions, but CTR under half of this site's typical CTR at that position (brand and non-brand judged separately).`,
     zero_clicks: `${d.min_impressions}+ impressions and no clicks.`,
+    competitor: "Searches that mention a competitor (edit the list below).",
   }[type];
 }
 
@@ -81,7 +87,9 @@ export function KeywordsView({ params }: { params: Promise<{ propertyId: string 
   const [rows, setRows] = useState<KeywordRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   // Loading = the filters on screen differ from the ones the last finished request used.
-  const requestKey = JSON.stringify(q);
+  const [competitors, setCompetitors] = useState<string[] | null>(null);
+  const [termsVersion, setTermsVersion] = useState(0); // bumps after competitor terms change
+  const requestKey = JSON.stringify([q, termsVersion]);
   const [doneKey, setDoneKey] = useState<string | null>(null);
   const loading = doneKey !== requestKey;
 
@@ -91,6 +99,13 @@ export function KeywordsView({ params }: { params: Promise<{ propertyId: string 
   useEffect(() => {
     api.property(id).then(setProperty).catch((e: Error) => setError(e.message));
   }, [id]);
+
+  useEffect(() => {
+    api
+      .competitorTerms(id)
+      .then((r) => setCompetitors(r.terms))
+      .catch(() => setCompetitors([]));
+  }, [id, termsVersion]);
 
   // Debounce the search box.
   useEffect(() => {
@@ -109,11 +124,11 @@ export function KeywordsView({ params }: { params: Promise<{ propertyId: string 
         setError(null);
       })
       .catch((e: Error) => !cancelled && setError(e.message))
-      .finally(() => !cancelled && setDoneKey(JSON.stringify(q)));
+      .finally(() => !cancelled && setDoneKey(JSON.stringify([q, termsVersion])));
     return () => {
       cancelled = true;
     };
-  }, [id, q]);
+  }, [id, q, termsVersion]);
 
   if (!property) return error ? <Banner tone="error">{error}</Banner> : <p className="text-sm text-muted">Loading…</p>;
 
@@ -159,12 +174,16 @@ export function KeywordsView({ params }: { params: Promise<{ propertyId: string 
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <RangeControls
-          days={q.days}
-          onDays={(days) => update({ days })}
-          compare={q.compare}
-          onCompare={(compare) => update({ compare })}
-        />
+        {view === "seasonal" || view === "spikes" ? (
+          <span className="text-sm text-muted">Uses all stored history, month by month.</span>
+        ) : (
+          <RangeControls
+            days={q.days}
+            onDays={(days) => update({ days })}
+            compare={q.compare}
+            onCompare={(compare) => update({ compare })}
+          />
+        )}
         <div className="flex rounded-md border border-border bg-surface p-0.5 text-sm" role="tablist" aria-label="Brand filter">
           {(["all", "brand", "non_brand"] as QuerySegment[]).map((s) => (
             <button
@@ -180,7 +199,10 @@ export function KeywordsView({ params }: { params: Promise<{ propertyId: string 
         </div>
       </div>
 
-      {view !== "all" &&
+      {view === "seasonal" && <SeasonalPanel propertyId={id} segment={q.segment} />}
+      {view === "spikes" && <SpikesPanel propertyId={id} segment={q.segment} />}
+
+      {(view === "striking" || view === "cannibal") &&
         (q.days > OPPORTUNITY_MAX_DAYS ? (
           <RangeTooLong onPick={(days) => update({ days })} />
         ) : view === "striking" ? (
@@ -193,8 +215,11 @@ export function KeywordsView({ params }: { params: Promise<{ propertyId: string 
         <Card className="space-y-3 p-4">
           <div className="flex flex-wrap gap-2" role="group" aria-label="Keyword types">
             {TYPE_ORDER.map((t) => {
+              const noCompetitors = t === "competitor" && !competitors?.length;
               const unavailable =
-                (NEEDS_COMPARE.includes(t) && !data.compare_available) || (t === "new" && !data.new_available);
+                (NEEDS_COMPARE.includes(t) && !data.compare_available) ||
+                (t === "new" && !data.new_available) ||
+                noCompetitors;
               const active = q.types.includes(t);
               return (
                 <button
@@ -202,7 +227,13 @@ export function KeywordsView({ params }: { params: Promise<{ propertyId: string 
                   onClick={() => toggleType(t)}
                   disabled={unavailable && !active}
                   aria-pressed={active}
-                  title={unavailable ? "Not enough history for this date range" : describe(t, data.definitions, q.compare)}
+                  title={
+                    noCompetitors
+                      ? "Add competitor names below first"
+                      : unavailable
+                        ? "Not enough history for this date range"
+                        : describe(t, data.definitions, q.compare)
+                  }
                   className={`rounded-full border px-3 py-1 text-sm transition disabled:cursor-not-allowed disabled:opacity-40 ${
                     active ? "border-accent bg-accent-soft text-accent" : "border-border hover:bg-accent-soft"
                   }`}
@@ -226,6 +257,20 @@ export function KeywordsView({ params }: { params: Promise<{ propertyId: string 
               ))}
               {q.types.length > 1 && <li>Keywords must match all selected types.</li>}
             </ul>
+          )}
+          {competitors && (
+            <div className="border-t border-border pt-3">
+              <TermsEditor
+                label="Competitors"
+                hint="Competitor brand names or domains, separated by commas. Searches mentioning one are tagged “Competitors”."
+                placeholder="competitor brand, competitor.com"
+                terms={competitors}
+                onSave={async (value) => {
+                  await api.setCompetitorTerms(id, value ?? []);
+                  setTermsVersion((v) => v + 1);
+                }}
+              />
+            </div>
           )}
         </Card>
       )}

@@ -7,7 +7,7 @@ from sqlalchemy import delete, func, insert, select
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
-from app.gsc import google_api, keywords
+from app.gsc import google_api, keywords, seasonal
 from app.models import (
     GoogleConnection,
     GscDailyMetric,
@@ -147,8 +147,9 @@ def run_sync(run_id: int) -> None:
         # Make the Keywords tab's default view instant. A failure here must not fail the sync.
         try:
             keywords.warm_default_cache(db, prop)
+            seasonal.build_monthly(db, prop)
         except Exception:
-            log.exception("Warming keyword cache after sync %s failed", run_id)
+            log.exception("Warming keyword caches after sync %s failed", run_id)
             db.rollback()
     except Exception as exc:
         log.exception("GSC sync %s failed", run_id)

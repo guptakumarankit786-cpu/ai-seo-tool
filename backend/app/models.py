@@ -14,7 +14,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -63,6 +63,8 @@ class GscProperty(Base):
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # Terms that mark a query as "brand". Null = not set yet (a suggestion from the domain is used).
     brand_terms: Mapped[list[str] | None] = mapped_column(ARRAY(Text))
+    # Competitor names; queries containing one are tagged "competitor". Null/empty = none set.
+    competitor_terms: Mapped[list[str] | None] = mapped_column(ARRAY(Text))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     connection: Mapped[GoogleConnection] = relationship(back_populates="properties")
@@ -273,6 +275,7 @@ class GscKeywordCacheRow(Base):
     t_low_ctr: Mapped[bool] = mapped_column(Boolean)
     t_zero_clicks: Mapped[bool] = mapped_column(Boolean)
     t_high_performance: Mapped[bool] = mapped_column(Boolean)
+    t_competitor: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
 
 class GscQueryPageCacheEntry(Base):
@@ -310,3 +313,20 @@ class GscQueryPageCacheRow(Base):
     clicks: Mapped[int] = mapped_column(Integer)
     impressions: Mapped[int] = mapped_column(Integer)
     position: Mapped[float] = mapped_column(Float)
+
+
+class GscMonthlyKeywordCache(Base):
+    """Monthly impressions/clicks per keyword over the stored history, for seasonal and spike views.
+
+    Aggregating millions of daily rows by month takes seconds, so it's built once per sync.
+    `series` maps keyword -> {"impressions": [...], "clicks": [...]} aligned with `months`.
+    """
+
+    __tablename__ = "gsc_monthly_keyword_cache"
+
+    property_id: Mapped[int] = mapped_column(
+        ForeignKey("gsc_properties.id", ondelete="CASCADE"), primary_key=True
+    )
+    built_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    months: Mapped[list[date]] = mapped_column(ARRAY(Date))
+    series: Mapped[dict] = mapped_column(JSONB)

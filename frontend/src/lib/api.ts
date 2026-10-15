@@ -94,7 +94,8 @@ export type KeywordType =
   | "declining"
   | "low_ctr"
   | "zero_clicks"
-  | "high_performance";
+  | "high_performance"
+  | "competitor";
 
 export type KeywordSort = "clicks" | "impressions" | "ctr" | "position" | "click_change" | "query";
 
@@ -192,6 +193,27 @@ export type CannibalResponse = {
 
 /** Page-level views pull keyword+page data live from Google; longer ranges would take minutes. */
 export const OPPORTUNITY_MAX_DAYS = 90;
+
+export type SeasonStatus = "in_season" | "coming_up" | "off_season";
+
+type MonthlyRow = {
+  query: string;
+  brand: boolean;
+  impressions: number[];
+  total_impressions: number;
+  total_clicks: number;
+};
+
+export type SeasonalRow = MonthlyRow & { peak_months: number[]; status: SeasonStatus };
+export type SpikeRow = MonthlyRow & { spike_month: string; spike_impressions: number; share: number };
+
+type MonthlyResponse = { months: string[]; available: boolean; min_impressions: number; total: number };
+export type SeasonalResponse = MonthlyResponse & {
+  repeating_months: string[];
+  counts: Record<SeasonStatus, number>;
+  items: SeasonalRow[];
+};
+export type SpikesResponse = MonthlyResponse & { items: SpikeRow[] };
 
 export type InspectionRun = {
   id: number;
@@ -333,6 +355,18 @@ export const api = {
     if (q.search.trim()) params.set("search", q.search.trim());
     return request<KeywordsResponse>(`/api/gsc/properties/${id}/keywords?${params}`);
   },
+  competitorTerms: (id: number) => request<{ terms: string[] }>(`/api/gsc/properties/${id}/competitor-terms`),
+  setCompetitorTerms: (id: number, terms: string[]) =>
+    request<{ terms: string[] }>(`/api/gsc/properties/${id}/competitor-terms`, {
+      method: "PUT",
+      body: JSON.stringify({ terms }),
+    }),
+  seasonal: (id: number, segment: QuerySegment, status: SeasonStatus | null, limit = 100, offset = 0) =>
+    request<SeasonalResponse>(
+      `/api/gsc/properties/${id}/keywords/seasonal?segment=${segment}${status ? `&status=${status}` : ""}&limit=${limit}&offset=${offset}`,
+    ),
+  spikes: (id: number, segment: QuerySegment, limit = 100, offset = 0) =>
+    request<SpikesResponse>(`/api/gsc/properties/${id}/keywords/spikes?segment=${segment}&limit=${limit}&offset=${offset}`),
   strikingDistance: (id: number, days: number, segment: QuerySegment, sort: StrikingSort, limit = 100, offset = 0) =>
     request<StrikingResponse>(
       `/api/gsc/properties/${id}/opportunities/striking-distance?days=${days}&segment=${segment}&sort=${sort}&limit=${limit}&offset=${offset}`,

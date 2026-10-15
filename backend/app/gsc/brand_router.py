@@ -81,6 +81,24 @@ def set_brand_terms(property_id: int, body: BrandTermsIn, db: DbDep):
     return _terms_out(prop)
 
 
+class CompetitorTermsIO(BaseModel):
+    terms: list[str] = Field(default_factory=list, max_length=brand.MAX_TERMS)
+
+
+@router.get("/competitor-terms", response_model=CompetitorTermsIO)
+def get_competitor_terms(property_id: int, db: DbDep):
+    return CompetitorTermsIO(terms=_property(db, property_id).competitor_terms or [])
+
+
+@router.put("/competitor-terms", response_model=CompetitorTermsIO)
+def set_competitor_terms(property_id: int, body: CompetitorTermsIO, db: DbDep):
+    """Competitor names (brands, domains). Keywords containing one are tagged "competitor"."""
+    prop = _property(db, property_id)
+    prop.competitor_terms = brand.clean_terms(body.terms)
+    db.commit()
+    return CompetitorTermsIO(terms=prop.competitor_terms)
+
+
 def _to_totals(clicks: int, impressions: int, weighted_pos: float) -> Totals:
     return Totals(
         clicks=clicks,

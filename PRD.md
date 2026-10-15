@@ -67,6 +67,14 @@ Comparison-based filters are disabled when stored history doesn't cover the comp
 
 Keyword+page data is pulled **live from Google** (free) the first time a range is opened (~5–30 s on large sites) and kept until the next sync or for 24 hours. Shopping / free-listing URLs (`?variant=…&utm_…`) are excluded.
 
+**Competitors, Seasonal & Spikes:**
+
+| Feature | Rule |
+|---|---|
+| Competitors chip | Editable competitor names per client (Keywords tab); searches mentioning one are tagged. Empty until the user adds names. |
+| Seasonal | Over all stored history (full months, keywords with 1,000+ impressions): a calendar month seen in **both years** where the keyword had ≥ 2× its median month, ≥ 100 impressions, and stood out ≥ 25% from the months either side — **every time**. Status: in season / coming up (next 2 months) / off season. With Google's 16 months only ~3 calendar months repeat; coverage grows as stored history grows. |
+| Spikes | Not seasonal, and one month holds ≥ 60% of the keyword's impressions at ≥ 5× its other months' median — spam/bot searches, news moments, short-lived rankings. Spikes in the first/last month of history are labelled as possibly a lost ranking / still growing. |
+
 ### 4.4 Indexing — "Why pages aren't indexed" ✅
 Google offers **no API** for the Page Indexing report, so there are two sources:
 

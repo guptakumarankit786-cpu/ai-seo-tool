@@ -12,7 +12,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Badge, Button, Card } from "@/components/ui";
+import { TermsEditor } from "@/components/terms-editor";
+import { Card } from "@/components/ui";
 import {
   api,
   fmt,
@@ -70,7 +71,18 @@ export function BrandSection({
           <h2 className="text-sm font-medium">Brand vs non-brand</h2>
           <p className="mt-0.5 text-xs text-muted">Queries containing a brand term count as brand.</p>
         </div>
-        <TermsEditor propertyId={propertyId} terms={terms} onSaved={onTermsChange} />
+        <TermsEditor
+          label="Brand terms"
+          hint="Brand terms, separated by commas — include product / sub-brand names and common misspellings."
+          placeholder="brand name, product name, misspelling"
+          terms={terms.terms}
+          isDefault={terms.is_default}
+          suggested={terms.suggested}
+          onSave={async (value) => {
+            await api.setBrandTerms(propertyId, value);
+            onTermsChange();
+          }}
+        />
       </div>
 
       <div className="grid gap-3 md:grid-cols-2">
@@ -184,94 +196,6 @@ function Metric({ label, value, delta }: { label: string; value: string; delta: 
       <dt className="text-xs text-muted">{label}</dt>
       <dd className="font-semibold tabular-nums">{value}</dd>
       {delta && <dd className="text-xs tabular-nums">{delta}</dd>}
-    </div>
-  );
-}
-
-function TermsEditor({
-  propertyId,
-  terms,
-  onSaved,
-}: {
-  propertyId: number;
-  terms: BrandTerms;
-  onSaved: () => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const save = async (value: string[] | null) => {
-    setSaving(true);
-    try {
-      await api.setBrandTerms(propertyId, value);
-      setEditing(false);
-      setError(null);
-      onSaved();
-    } catch (e) {
-      setError((e as Error).message);
-    }
-    setSaving(false);
-  };
-
-  if (!editing) {
-    return (
-      <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
-        <span className="text-xs text-muted">Brand terms:</span>
-        {terms.terms.length ? terms.terms.map((t) => <Badge key={t}>{t}</Badge>) : <span className="text-xs">none</span>}
-        {terms.is_default && <span className="text-xs text-muted">(suggested)</span>}
-        <Button
-          variant="secondary"
-          className="ml-1"
-          onClick={() => {
-            setDraft(terms.terms.join(", "));
-            setEditing(true);
-          }}
-        >
-          Edit
-        </Button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="w-full space-y-2 sm:max-w-md">
-      <label className="block text-xs text-muted" htmlFor="brand-terms">
-        Brand terms, separated by commas — include product or sub-brand names too.
-      </label>
-      <input
-        id="brand-terms"
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        className="w-full rounded-md border border-border bg-surface px-3 py-1.5 text-sm"
-        placeholder="brand name, product name"
-        autoFocus
-      />
-      {error && <p className="text-xs text-negative">{error}</p>}
-      <div className="flex flex-wrap gap-2">
-        <Button
-          disabled={saving}
-          onClick={() =>
-            save(
-              draft
-                .split(",")
-                .map((t) => t.trim())
-                .filter(Boolean),
-            )
-          }
-        >
-          Save
-        </Button>
-        <Button variant="secondary" disabled={saving} onClick={() => setEditing(false)}>
-          Cancel
-        </Button>
-        {!terms.is_default && (
-          <Button variant="secondary" disabled={saving} onClick={() => save(null)}>
-            Reset to suggestion ({terms.suggested.join(", ") || "none"})
-          </Button>
-        )}
-      </div>
     </div>
   );
 }
