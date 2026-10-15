@@ -20,7 +20,7 @@ All views are filter chips with counts that can be combined (e.g. Non-brand + St
 |---|------|------|--------|
 | — | Brand / Non-brand | Editable brand terms per client. | ✅ Built |
 | 5a | **New keywords** | Impressions in the latest period, none in the months before (uses 16-month history). | ✅ Built |
-| 5b | **Striking distance** | Avg position ~4–20 with real impressions, with the ranking page. Query+page data **fetched live from Google** when opened (free, nothing extra stored). | 🎯 Approved |
+| 5b | **Striking distance** | Avg position ~4–20 with real impressions, with the ranking page. Query+page data **fetched live from Google** when opened (free, nothing extra stored). | ✅ Built |
 | 5c | **Long-tail** | 4+ words (adjustable). | ✅ Built |
 | 5d | **High performance** | Keywords bringing the most **traffic and impressions** (e.g. those making up ~80% of clicks). | ✅ Built |
 | 5e | **Question keywords** | Every question-style keyword: who/what/when/where/why/which/whose/whom/how, can/could/should/would/will, is/are/was/were, do/does/did, has/have, "?", plus forms like "how to", "what is", "ways to", "tips for", "guide to". | ✅ Built |
@@ -29,7 +29,7 @@ All views are filter chips with counts that can be combined (e.g. Non-brand + St
 | 5h | Rising / Declining | Biggest click gains / losses vs previous period or last year. | ✅ Built |
 | 5i | Low CTR | High impressions, CTR well below normal for that position. | ✅ Built |
 | 5j | Zero clicks | High impressions, no clicks. | ✅ Built |
-| 5k | Cannibalisation | One keyword split across several pages (same live query+page data as 5b). | 🎯 Approved (GSC phase) |
+| 5k | Cannibalisation | One keyword split across several pages (same live query+page data as 5b). | ✅ Built |
 | 5l | Competitor terms | Editable competitor list per client, like brand terms. | 🎯 Approved (GSC phase) |
 | 5m | Seasonal keywords | Keywords that peak in certain months (needs 16 months). | 🎯 Approved (GSC phase) |
 | 5n | Other types | Product, local, etc. | 💡 Later |

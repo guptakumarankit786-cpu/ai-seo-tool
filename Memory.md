@@ -5,6 +5,7 @@ Decisions and learned facts, newest first. Add an entry whenever something is de
 ## 2026-10-15
 
 **Decisions**
+- Striking distance & cannibalisation use query+page data pulled **live** and cached (until next sync / 24 h); limited to ≤ 90 days. Shopping URLs (with `?`) excluded. 3+ competing pages all in the top 3 = "likely sitelinks", flagged as fine.
 - Keyword types are combinable chips (AND). Definitions live in `backend/app/gsc/keywords.py` and PRD §4.3.
 - Low CTR uses the site's **own** typical CTR per position — overall clicks ÷ impressions (not the median), brand vs non-brand separately.
 - Tagged keyword sets are cached per (window, comparison, look-back, brand terms) and served from the cache; the 28-day set is pre-built after each sync.
@@ -29,6 +30,10 @@ Decisions and learned facts, newest first. Add an entry whenever something is de
 - Use the installed Claude skills (Jeffallan/claude-skills) for every feature.
 
 **Facts learned**
+- Live query+page pull on a large site: 28 d ≈ 68k rows / 6 s; 3 m ≈ 154k rows / 30 s.
+- Postgres row estimates on freshly inserted / CTE data were off by 1000×+, turning joins into nested loops that ran for minutes. Fixes that worked: `ANALYZE` after bulk insert, window functions instead of self-joins, and passing small lookups (typical CTR) as parameters.
+- Cannibalisation on brand / navigational searches is mostly Google sitelinks (many pages at position ~1) — not a real problem.
+- On a real site the sharpest cannibalisation finds were two blog posts on the same topic splitting a "how to" query.
 - On real data most keywords at positions 5–10 have zero clicks → the **median** CTR there is 0%, which made a median-based low-CTR rule blind. Use clicks ÷ impressions.
 - Postgres regex alternations with word boundaries cost ~70–100 µs per keyword; splitting into words once and using array overlap is ~20× faster. Postgres JIT also added ~1.5 s to the tagging query because of bad row estimates — disabled for that statement.
 - Keyword tagging cost (large site): first build ~3 s (7d) / ~6 s (28d) / ~14 s (3m) / ~25–45 s (16m); cached filters ~0.1 s; cache ≈ 77 MB for 5 ranges.

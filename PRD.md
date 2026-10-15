@@ -58,6 +58,15 @@ A **Keywords** tab per client lists every keyword Google reported for the chosen
 
 Comparison-based filters are disabled when stored history doesn't cover the comparison window. The first time a range is opened the keyword set is built (seconds to ~45 s for 16 months on very large sites); after that every filter, sort, search and page is instant. The 28-day set is pre-built at the end of each sync.
 
+**Striking distance & Cannibalisation** (Keywords tab → view switch; 7 days – 3 months):
+
+| View | Rule |
+|---|---|
+| Striking distance | The keyword's main page (most impressions) ranks 4–20 with enough impressions. Shows that page, other ranking pages, and **potential extra clicks** at position 3 using the site's own CTR there (brand / non-brand). |
+| Cannibalisation | 2+ of the site's pages each get ≥ 10% of a keyword's impressions; every competing page with share, impressions, clicks, position. 3+ pages all in the top 3 = **likely sitelinks** (navigational search) — flagged as usually fine and listed last. |
+
+Keyword+page data is pulled **live from Google** (free) the first time a range is opened (~5–30 s on large sites) and kept until the next sync or for 24 hours. Shopping / free-listing URLs (`?variant=…&utm_…`) are excluded.
+
 ### 4.4 Indexing — "Why pages aren't indexed" ✅
 Google offers **no API** for the Page Indexing report, so there are two sources:
 

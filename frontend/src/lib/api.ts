@@ -143,6 +143,56 @@ export type KeywordQuery = {
   offset: number;
 };
 
+export type StrikingRow = {
+  query: string;
+  page: string;
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number;
+  other_pages: number;
+  brand: boolean;
+  target_ctr: number | null;
+  potential: number | null;
+};
+
+export type StrikingSort = "potential" | "impressions" | "clicks" | "position";
+
+export type StrikingResponse = {
+  start_date: string;
+  end_date: string;
+  fetched_at: string;
+  min_position: number;
+  max_position: number;
+  target_position: number;
+  min_impressions: number;
+  total: number;
+  items: StrikingRow[];
+};
+
+export type CannibalRow = {
+  query: string;
+  brand: boolean;
+  clicks: number;
+  impressions: number;
+  competing_pages: number;
+  sitelinks_likely: boolean;
+  pages: { page: string; clicks: number; impressions: number; position: number; share: number }[];
+};
+
+export type CannibalResponse = {
+  start_date: string;
+  end_date: string;
+  fetched_at: string;
+  min_share: number;
+  min_impressions: number;
+  total: number;
+  items: CannibalRow[];
+};
+
+/** Page-level views pull keyword+page data live from Google; longer ranges would take minutes. */
+export const OPPORTUNITY_MAX_DAYS = 90;
+
 export type InspectionRun = {
   id: number;
   status: "running" | "success" | "partial" | "failed";
@@ -283,6 +333,14 @@ export const api = {
     if (q.search.trim()) params.set("search", q.search.trim());
     return request<KeywordsResponse>(`/api/gsc/properties/${id}/keywords?${params}`);
   },
+  strikingDistance: (id: number, days: number, segment: QuerySegment, sort: StrikingSort, limit = 100, offset = 0) =>
+    request<StrikingResponse>(
+      `/api/gsc/properties/${id}/opportunities/striking-distance?days=${days}&segment=${segment}&sort=${sort}&limit=${limit}&offset=${offset}`,
+    ),
+  cannibalisation: (id: number, days: number, segment: QuerySegment, limit = 100, offset = 0) =>
+    request<CannibalResponse>(
+      `/api/gsc/properties/${id}/opportunities/cannibalisation?days=${days}&segment=${segment}&limit=${limit}&offset=${offset}`,
+    ),
   indexing: (id: number) => request<IndexingSummary>(`/api/gsc/properties/${id}/indexing`),
   startInspection: (id: number) =>
     request<InspectionRun>(`/api/gsc/properties/${id}/indexing`, { method: "POST" }),

@@ -98,7 +98,8 @@ def window_for(start: date, end: date, compare_start: date, compare_end: date, f
     )
 
 
-def _brand_sql(terms: list[str], params: dict) -> str:
+def brand_sql(terms: list[str], params: dict, column: str = "norm") -> str:
+    """SQL boolean: the normalised-query `column` contains any brand term (adds bind params)."""
     keys = [brand.normalize(t) for t in terms if brand.normalize(t)]
     if not keys:
         return "false"
@@ -106,7 +107,7 @@ def _brand_sql(terms: list[str], params: dict) -> str:
     for i, key in enumerate(keys):
         escaped = key.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         params[f"brand_{i}"] = f"%{escaped}%"
-        clauses.append(f"norm like :brand_{i}")
+        clauses.append(f"{column} like :brand_{i}")
     return "(" + " or ".join(clauses) + ")"
 
 
@@ -186,7 +187,7 @@ def _tagged_sql(win: Window, terms: list[str], days: int, params: dict) -> str:
             left join seen s on s.query = c.query
         ),
         branded as (
-            select j.*, {_brand_sql(terms, params)} as brand from joined j
+            select j.*, {brand_sql(terms, params)} as brand from joined j
         ),
         -- The site's typical CTR per rounded position, separately for brand and non-brand
         -- (brand searches click far more). Overall clicks / impressions, not the median: on
@@ -291,6 +292,7 @@ def _cached_entry(db: Session, property_id: int, win: Window, days: int, terms: 
         ),
         params,
     )
+    db.execute(text("analyze gsc_keyword_cache_rows"))  # keep planner estimates sane for the reads
     # Keep only the most recent few sets per property.
     stale = db.scalars(
         select(GscKeywordCacheEntry.id)

@@ -17,9 +17,18 @@ import {
   type KeywordsResponse,
   type Property,
   type QuerySegment,
+  OPPORTUNITY_MAX_DAYS,
 } from "@/lib/api";
+import { CannibalPanel, RangeTooLong, StrikingPanel } from "./opportunity-views";
 
 const PAGE_SIZE = 100;
+
+type View = "all" | "striking" | "cannibal";
+const VIEWS: { key: View; label: string }[] = [
+  { key: "all", label: "All keywords" },
+  { key: "striking", label: "Striking distance" },
+  { key: "cannibal", label: "Cannibalisation" },
+];
 
 const TYPE_LABEL: Record<KeywordType, string> = {
   high_performance: "High performance",
@@ -66,6 +75,7 @@ export function KeywordsView({ params }: { params: Promise<{ propertyId: string 
     limit: PAGE_SIZE,
     offset: 0,
   });
+  const [view, setView] = useState<View>("all");
   const [searchInput, setSearchInput] = useState("");
   const [data, setData] = useState<KeywordsResponse | null>(null);
   const [rows, setRows] = useState<KeywordRow[]>([]);
@@ -132,6 +142,22 @@ export function KeywordsView({ params }: { params: Promise<{ propertyId: string 
 
       <PropertyTabs propertyId={id} active="keywords" />
 
+      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Keyword view">
+        {VIEWS.map((v) => (
+          <button
+            key={v.key}
+            role="tab"
+            aria-selected={view === v.key}
+            onClick={() => setView(v.key)}
+            className={`rounded-md border px-3 py-1.5 text-sm ${
+              view === v.key ? "border-accent bg-accent-soft font-medium text-accent" : "border-border hover:bg-accent-soft"
+            }`}
+          >
+            {v.label}
+          </button>
+        ))}
+      </div>
+
       <div className="flex flex-wrap items-center gap-2">
         <RangeControls
           days={q.days}
@@ -154,7 +180,16 @@ export function KeywordsView({ params }: { params: Promise<{ propertyId: string 
         </div>
       </div>
 
-      {data && (
+      {view !== "all" &&
+        (q.days > OPPORTUNITY_MAX_DAYS ? (
+          <RangeTooLong onPick={(days) => update({ days })} />
+        ) : view === "striking" ? (
+          <StrikingPanel propertyId={id} days={q.days} segment={q.segment} />
+        ) : (
+          <CannibalPanel propertyId={id} days={q.days} segment={q.segment} />
+        ))}
+
+      {view === "all" && data && (
         <Card className="space-y-3 p-4">
           <div className="flex flex-wrap gap-2" role="group" aria-label="Keyword types">
             {TYPE_ORDER.map((t) => {
@@ -195,9 +230,9 @@ export function KeywordsView({ params }: { params: Promise<{ propertyId: string 
         </Card>
       )}
 
-      {error && <Banner tone="error">{error}</Banner>}
+      {view === "all" && error && <Banner tone="error">{error}</Banner>}
 
-      <Card className="overflow-hidden">
+      <Card className={`overflow-hidden ${view === "all" ? "" : "hidden"}`}>
         <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-4 pb-3">
           <h2 className="text-sm font-medium">
             {data ? `${fmt.int(data.total)} keywords` : "Keywords"}

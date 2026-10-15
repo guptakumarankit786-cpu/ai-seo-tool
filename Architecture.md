@@ -43,6 +43,8 @@ backend/app/
     brand_router.py    /api/gsc/properties/{id}/brand-terms, /segments
     keywords.py        keyword-type definitions, tagging SQL, cache build + filter/sort/page
     keywords_router.py /api/gsc/properties/{id}/keywords
+    opportunities.py   live query+page pull + cache, striking distance, cannibalisation
+    opportunities_router.py /api/gsc/properties/{id}/opportunities/{striking-distance,cannibalisation}
 ```
 
 ## 3. Data model
@@ -59,6 +61,8 @@ backend/app/
 | `gsc_url_inspections` | Latest inspection per URL (coverage state, canonicals, last crawl, in_sitemap / in_search). |
 | `gsc_keyword_cache_entries` | One cached tagged keyword set per (property, window, comparison, look-back, brand terms) — max 8 per property. |
 | `gsc_keyword_cache_rows` | **UNLOGGED** rows of a cached set: metrics, comparison metrics, typical CTR, brand flag, `t_<type>` flags. |
+| `gsc_query_page_cache_entries` | Live query+page pull per (property, start, end); refreshed after a sync or after 24 h; max 3 per property. |
+| `gsc_query_page_cache_rows` | **UNLOGGED** query, page, clicks, impressions, position (+ generated `query_norm`). |
 | `gsc_indexing_exports` | Uploaded Search Console exports (`overview` or per-reason `issue`). |
 | `gsc_indexing_export_reasons`, `gsc_indexing_export_urls` | Parsed rows of those uploads. |
 
@@ -83,6 +87,8 @@ Deleting a connection cascades to everything below it. Schema changes go through
 **Brand vs non-brand** — a query is brand if `query_norm` (a Postgres **generated column**: `lower(query)` with spaces/punctuation removed) contains any brand term normalised the same way (so "acme co" = "acmeco"). Matching is a plain `LIKE` at read time, so editing terms takes effect immediately; 16 months (~2.4M keyword rows) takes ~1.5 s, 28 days ~0.2 s. `/segments` returns brand / non-brand totals (current + previous period), click share, a daily split, and the clicks hidden by Google (site total − query-level total). `/queries?segment=brand|non_brand` filters top queries.
 
 **Keyword explorer** — `GET /properties/{id}/keywords?days&compare&segment&types&search&sort&order&limit&offset`. One SQL statement aggregates queries for the current window, the comparison window and a 90-day "new" look-back (each only if stored history covers it), joins them, computes the site's typical CTR per rounded position separately for brand / non-brand (clicks ÷ impressions of keywords with ≥ 50 impressions, ≥ 5 keywords per position), a running click total for the 80% high-performance cut, and splits each keyword into words once (`regexp_split_to_array`) so question / buying matching is word-list overlap (`&&`) plus a few `LIKE` phrases. The result is inserted into the cache tables (JIT off, larger `work_mem` for that statement); filters/sort/paging then read the cache (~0.1 s). Cache entries are rebuilt when older than `last_synced_at`; brand-term changes produce a new key; `run_sync` pre-builds the default 28-day set.
+
+**Striking distance / cannibalisation** — `GET /properties/{id}/opportunities/{striking-distance|cannibalisation}?days≤90`. The first request for a range pulls `query+page` from Search Analytics (28 d ≈ 68k rows in ~6 s, 3 m ≈ 154k rows in ~30 s on a large site), stores it, and runs `ANALYZE` (without stats the planner chose nested loops taking minutes). Per-keyword totals and the main page are computed with **window functions over a single scan** — joins between per-keyword CTEs got row estimates of ~1 and nested-looped for minutes on real data. The site's typical CTR at position 3 is computed in a separate tiny query and passed in as parameters for the same reason. URLs containing `?` are excluded.
 
 **Advice** — `advice.py` normalises Google's wording (quotes, dashes, case) and maps each reason to a verdict + action; reasons sorted worth-fixing first.
 
@@ -122,4 +128,4 @@ Pages are thin server components wrapping client components in `<Suspense>` (req
 ```bash
 docker compose exec backend python -m pytest -q
 ```
-146 tests: OAuth, encryption, sync, reports maths, inspection discovery/quota/ordering, export parsing, advice, brand matching/segments, chunked/latest sync, comparisons, keyword types/filters/cache, endpoints. Frontend: typecheck + lint; verified manually in the browser.
+160 tests: OAuth, encryption, sync, reports maths, inspection discovery/quota/ordering, export parsing, advice, brand matching/segments, chunked/latest sync, comparisons, keyword types/filters/cache, striking distance / cannibalisation / live cache, endpoints. Frontend: typecheck + lint; verified manually in the browser.

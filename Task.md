@@ -15,11 +15,11 @@ _Last updated: 2026-10-15. Raw ideas live in [docs/ideas.md](docs/ideas.md); onl
 - [x] Performance: brand vs non-brand queries — editable brand terms, segment cards, daily chart, Top queries filter, hidden-clicks note
 - [x] 16 months of data: 3 / 6 / 16-month sync in monthly chunks with progress, "Latest days" sync, 3m–16m ranges, compare with previous period or last year (dashed on chart), generated `query_norm` for fast keyword matching — verified identical to Google
 - [x] Keywords tab (part 1): High performance, Questions, Buying intent, Long-tail, New, Lost, Rising, Declining, Low CTR, Zero clicks — combinable chips with counts, All/Brand/Non-brand, search, sort, paging; cached tagged sets, 28-day set pre-built after sync
-- [x] Backend test suite (146 tests)
+- [x] Keywords tab (part 2): Striking distance (main page 4–20, potential clicks at position 3) and Cannibalisation (2+ pages ≥ 10%, sitelinks flagged) from live query+page data, cached until next sync / 24 h
+- [x] Backend test suite (160 tests)
 - [x] Project docs: PRD, Architecture, Rules, Design, Task, Memory
 
 ## 🔜 Next — GSC phase (approved 2026-10-15, see docs/ideas.md)
-- [ ] Keyword views part 2 (live query+page from Google): Striking distance, Cannibalisation
 - [ ] Keyword views part 3: Competitor terms, Seasonal
 - [ ] Test the export upload with a **real** Search Console export and adjust the parser if needed
 - [ ] Decide what to merge from `test` into `main` (first stable release)

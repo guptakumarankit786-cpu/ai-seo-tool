@@ -273,3 +273,40 @@ class GscKeywordCacheRow(Base):
     t_low_ctr: Mapped[bool] = mapped_column(Boolean)
     t_zero_clicks: Mapped[bool] = mapped_column(Boolean)
     t_high_performance: Mapped[bool] = mapped_column(Boolean)
+
+
+class GscQueryPageCacheEntry(Base):
+    """A live query+page pull from Search Console for one date range.
+
+    Query+page data is too large to keep for 16 months, so it's fetched from Google when a
+    page-level view (striking distance, cannibalisation) is opened and kept briefly.
+    """
+
+    __tablename__ = "gsc_query_page_cache_entries"
+    __table_args__ = (UniqueConstraint("property_id", "start_date", "end_date"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    property_id: Mapped[int] = mapped_column(ForeignKey("gsc_properties.id", ondelete="CASCADE"))
+    start_date: Mapped[date] = mapped_column(Date)
+    end_date: Mapped[date] = mapped_column(Date)
+    built_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class GscQueryPageCacheRow(Base):
+    """Rows of a live query+page pull. UNLOGGED: a rebuildable cache."""
+
+    __tablename__ = "gsc_query_page_cache_rows"
+    __table_args__ = {"prefixes": ["UNLOGGED"]}
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    entry_id: Mapped[int] = mapped_column(
+        ForeignKey("gsc_query_page_cache_entries.id", ondelete="CASCADE"), index=True
+    )
+    query: Mapped[str] = mapped_column(Text)
+    query_norm: Mapped[str] = mapped_column(
+        Text, Computed(r"regexp_replace(lower(query), '[[:space:][:punct:]]', '', 'g')", persisted=True)
+    )
+    page: Mapped[str] = mapped_column(Text)
+    clicks: Mapped[int] = mapped_column(Integer)
+    impressions: Mapped[int] = mapped_column(Integer)
+    position: Mapped[float] = mapped_column(Float)

@@ -49,6 +49,9 @@ Use tokens through Tailwind (`bg-surface`, `text-muted`, `border-border`, `bg-ne
 | Segment card | coloured dot + label, share-of-clicks bar, 4 metrics with change vs previous period. |
 | Sync controls | select (Latest days / 3 / 6 / 16 months) + Sync button; status line underneath ("Data Jun 14, 2025 – Oct 12 · synced …", or "Syncing — month 4 of 17…"). |
 | Compare select | "Compare: previous period / same period last year"; KPI deltas say "vs previous period" / "vs last year"; chart shows the comparison as dashed, faded lines. |
+| View switch | "All keywords / Striking distance / Cannibalisation" outlined buttons above the range controls. |
+| Striking row | keyword (brand dot) with its ranking page underneath (accent link, "+n other pages"); Potential in green "+n". |
+| Cannibal item | keyword + "impr · clicks · n pages"; per page: share bar, %, impressions, clicks, position; green "Likely sitelinks — usually fine" pill. |
 | Filter chips | rounded pills "Label count"; active = accent border + soft fill; disabled (40% opacity, "—") when history is missing; selected chips' definitions listed underneath; "Clear". |
 | Keyword row | brand / non-brand dot, keyword, small type tags underneath; Change coloured green/red; CTR shows "typical x%" under low-CTR rows; sortable headers with ↑/↓. |
 | Terms editor | chips + Edit → comma-separated input, Save / Cancel / Reset to suggestion. |
