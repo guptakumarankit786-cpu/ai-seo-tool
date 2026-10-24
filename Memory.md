@@ -2,6 +2,15 @@
 
 Decisions and learned facts, newest first. Add an entry whenever something is decided or discovered that isn't obvious from the code. **No client names or client data** — the repo is public.
 
+## 2026-10-24
+
+**Decisions**
+- Low CTR pages (idea 5p) reuse the keyword rule (top 10, enough impressions, CTR < half of typical) but learn a separate **page-level** typical CTR per position, with no brand split. Shopping `?` URLs are excluded. The Low CTR list is sorted by click shortfall, so the most-missed clicks come first. It's a live query with no cache.
+
+**Facts learned**
+- On a large site the page-level typical CTR at positions 1–5 is only ~0.8–1.6%. Page impressions include many long-tail queries, so judge pages against page baselines, not keyword ones.
+- Rebuilding/recreating the backend container loses the pip-installed `pytest` and `python-multipart`; the API then fails to start ("Form data requires python-multipart"). Reinstall and restart the backend (tech debt: bake them into the image).
+
 ## 2026-10-15
 
 **Decisions**

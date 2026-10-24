@@ -13,6 +13,7 @@ import {
   propertyLabel,
   type Compare,
   type DimensionRow,
+  type PageFilter,
   type Property,
   type Summary,
   type Totals,
@@ -27,7 +28,6 @@ export function PropertyDashboard({ params }: { params: Promise<{ propertyId: st
   const [compare, setCompare] = useState<Compare>("previous");
   const [property, setProperty] = useState<Property | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
-  const [pages, setPages] = useState<DimensionRow[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const [version, setVersion] = useState(0);
@@ -35,12 +35,11 @@ export function PropertyDashboard({ params }: { params: Promise<{ propertyId: st
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([api.property(id), api.summary(id, days, compare), api.pages(id, days)])
-      .then(([p, s, pg]) => {
+    Promise.all([api.property(id), api.summary(id, days, compare)])
+      .then(([p, s]) => {
         if (cancelled) return;
         setProperty(p);
         setSummary(s);
-        setPages(pg);
         setError(null);
       })
       .catch((e: Error) => {
@@ -101,7 +100,7 @@ export function PropertyDashboard({ params }: { params: Promise<{ propertyId: st
 
       <div className="grid gap-6 lg:grid-cols-2">
         <QueriesTable propertyId={id} days={days} version={version} />
-        <DimensionTable title="Top pages" keyLabel="Page" rows={pages} isUrl />
+        <PagesTable propertyId={id} days={days} version={version} />
       </div>
     </div>
   );
@@ -159,49 +158,96 @@ function Kpi({
   );
 }
 
-function DimensionTable({
-  title,
-  keyLabel,
-  rows,
-  isUrl = false,
-}: {
-  title: string;
-  keyLabel: string;
-  rows: DimensionRow[];
-  isUrl?: boolean;
-}) {
+const PAGE_FILTERS: { key: PageFilter; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "low_ctr", label: "Low CTR" },
+];
+
+function PagesTable({ propertyId, days, version }: { propertyId: number; days: number; version: number }) {
+  const [filter, setFilter] = useState<PageFilter>("all");
+  const [rows, setRows] = useState<DimensionRow[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .pages(propertyId, days, 50, filter)
+      .then((r) => {
+        if (cancelled) return;
+        setRows(r);
+        setLoaded(true);
+      })
+      .catch(() => !cancelled && setLoaded(true));
+    return () => {
+      cancelled = true;
+    };
+  }, [propertyId, days, filter, version]);
+
   return (
     <Card className="overflow-hidden">
-      <h2 className="px-4 pt-4 pb-3 text-sm font-medium">{title}</h2>
-      {rows.length === 0 ? (
-        <p className="px-4 pb-6 text-sm text-muted">No data in this range.</p>
+      <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-4 pb-3">
+        <h2 className="text-sm font-medium">Top pages</h2>
+        <div className="flex rounded-md border border-border p-0.5 text-xs" role="tablist">
+          {PAGE_FILTERS.map((f) => (
+            <button
+              key={f.key}
+              role="tab"
+              aria-selected={filter === f.key}
+              onClick={() => setFilter(f.key)}
+              className={`rounded px-2.5 py-1 ${filter === f.key ? "bg-accent-soft font-medium text-accent" : "text-muted hover:text-foreground"}`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {filter === "low_ctr" && (
+        <p className="px-4 pb-3 text-xs text-muted">
+          Top-10 pages with enough impressions whose CTR is under half of this site&apos;s typical page CTR at that
+          position — biggest click shortfall first. Usually a title or description to rewrite.
+        </p>
+      )}
+      {loaded && rows.length === 0 ? (
+        <p className="px-4 pb-6 text-sm text-muted">
+          {filter === "low_ctr" ? "No low-CTR pages in this range." : "No data in this range."}
+        </p>
       ) : (
         <div className="max-h-[480px] overflow-auto">
           <table className="w-full table-fixed text-sm">
             <thead className="sticky top-0 bg-surface text-xs text-muted">
               <tr className="border-b border-border">
-                <th className="px-4 py-2 text-left font-normal">{keyLabel}</th>
+                <th className="px-4 py-2 text-left font-normal">Page</th>
                 <th className="w-16 px-2 py-2 text-right font-normal">Clicks</th>
                 <th className="w-20 px-2 py-2 text-right font-normal">Impr.</th>
-                <th className="hidden w-16 px-2 py-2 text-right font-normal sm:table-cell">CTR</th>
+                <th className="hidden w-20 px-2 py-2 text-right font-normal sm:table-cell">CTR</th>
                 <th className="w-14 px-4 py-2 text-right font-normal">Pos.</th>
               </tr>
             </thead>
             <tbody className="tabular-nums">
               {rows.map((r) => (
                 <tr key={r.key} className="border-b border-border last:border-0">
-                  <td className="max-w-0 truncate px-4 py-2" title={r.key}>
-                    {isUrl ? (
-                      <a href={r.key} target="_blank" rel="noreferrer" className="hover:underline">
+                  <td className="max-w-0 px-4 py-2" title={r.key}>
+                    <span className="flex items-center gap-2">
+                      <a href={r.key} target="_blank" rel="noreferrer" className="truncate hover:underline">
                         {r.key.replace(/^https?:\/\/[^/]+/, "") || "/"}
                       </a>
-                    ) : (
-                      r.key
-                    )}
+                      {filter === "all" && r.low_ctr && (
+                        <span className="shrink-0 rounded-full bg-negative/15 px-1.5 text-[11px] text-negative">
+                          Low CTR
+                        </span>
+                      )}
+                    </span>
                   </td>
                   <td className="px-2 py-2 text-right">{fmt.int(r.clicks)}</td>
                   <td className="px-2 py-2 text-right">{fmt.int(r.impressions)}</td>
-                  <td className="hidden px-2 py-2 text-right sm:table-cell">{fmt.pct(r.ctr)}</td>
+                  <td className="hidden px-2 py-2 text-right sm:table-cell">
+                    {fmt.pct(r.ctr)}
+                    {r.low_ctr && r.expected_ctr != null && (
+                      <div className="text-[11px] text-muted" title="This site's typical page CTR at this position">
+                        typical {fmt.pct(r.expected_ctr)}
+                      </div>
+                    )}
+                  </td>
                   <td className="px-4 py-2 text-right">{fmt.pos(r.position)}</td>
                 </tr>
               ))}

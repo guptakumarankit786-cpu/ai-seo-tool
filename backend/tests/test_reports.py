@@ -2,7 +2,7 @@ from datetime import timedelta
 
 import pytest
 
-from app.models import GscDailyMetric, GscQueryMetric
+from app.models import GscDailyMetric, GscPageMetric, GscQueryMetric
 from tests.conftest import days_ago
 
 
@@ -110,3 +110,57 @@ class TestTopQueries:
 
     def test_pages_endpoint_returns_empty_list_without_data(self, client, prop):
         assert client.get(f"/api/gsc/properties/{prop.id}/pages?days=7").json() == []
+
+
+class TestPageLowCtr:
+    def seed(self, db, prop):
+        end = days_ago(3)
+        add_day(db, prop, end, clicks=1, impressions=1, position=1.0)  # anchors the window
+        pages = [(f"https://example.com/ok{n}", 10, 100, 3.0) for n in range(5)] + [
+            ("https://example.com/bad", 2, 200, 3.0),  # 1% vs typical ~6.6% → low CTR
+            ("https://example.com/bad2", 1, 100, 3.0),  # 1%, smaller shortfall
+            ("https://example.com/fine", 6, 100, 3.0),  # 6%: below typical but not under half
+            ("https://example.com/p?variant=1", 0, 200, 3.0),  # shopping URL: never flagged
+            ("https://example.com/tiny", 0, 10, 3.0),  # too few impressions
+            ("https://example.com/deep", 0, 500, 15.0),  # outside the top 10
+        ]
+        for page, clicks, impressions, position in pages:
+            db.add(
+                GscPageMetric(
+                    property_id=prop.id,
+                    date=end,
+                    page=page,
+                    clicks=clicks,
+                    impressions=impressions,
+                    ctr=clicks / impressions,
+                    position=position,
+                )
+            )
+        db.commit()
+
+    def test_flags_pages_under_half_the_typical_ctr(self, client, db, prop):
+        self.seed(db, prop)
+
+        rows = {r["key"]: r for r in client.get(f"/api/gsc/properties/{prop.id}/pages?days=7").json()}
+
+        flagged = {k for k, r in rows.items() if r["low_ctr"]}
+        assert flagged == {"https://example.com/bad", "https://example.com/bad2"}
+        # typical CTR at position 3 = clicks / impressions of clean pages with 50+ impressions
+        assert rows["https://example.com/bad"]["expected_ctr"] == pytest.approx(59 / 900)
+        assert rows["https://example.com/deep"]["expected_ctr"] is None
+
+    def test_low_ctr_filter_sorts_by_click_shortfall(self, client, db, prop):
+        self.seed(db, prop)
+
+        rows = client.get(f"/api/gsc/properties/{prop.id}/pages?days=7&filter=low_ctr").json()
+
+        assert [r["key"] for r in rows] == ["https://example.com/bad", "https://example.com/bad2"]
+
+    def test_no_typical_ctr_without_enough_pages(self, client, db, prop):
+        end = days_ago(3)
+        add_day(db, prop, end, clicks=1, impressions=1, position=1.0)
+        db.add(GscPageMetric(property_id=prop.id, date=end, page="https://example.com/a",
+                             clicks=0, impressions=500, ctr=0.0, position=2.0))
+        db.commit()
+
+        assert client.get(f"/api/gsc/properties/{prop.id}/pages?days=7&filter=low_ctr").json() == []

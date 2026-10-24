@@ -6,17 +6,16 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
-from sqlalchemy import delete, desc, func, select
+from sqlalchemy import delete, desc, func, select, text
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.crypto import decrypt, encrypt
 from app.db import get_db
-from app.gsc import brand, google_api, sync
+from app.gsc import brand, google_api, keywords, sync
 from app.models import (
     GoogleConnection,
     GscDailyMetric,
-    GscPageMetric,
     GscProperty,
     GscQueryMetric,
     GscSyncRun,
@@ -119,6 +118,8 @@ class SummaryOut(BaseModel):
 class DimensionRow(Totals):
     key: str
     brand: bool | None = None  # set for queries
+    expected_ctr: float | None = None  # pages: site's typical page CTR at this position
+    low_ctr: bool | None = None  # pages: CTR under half of that typical CTR
 
 
 # ---------- helpers ----------
@@ -434,7 +435,61 @@ def top_pages(
     property_id: int,
     days: int = Query(28, ge=1, le=sync.MAX_HISTORY_DAYS),
     limit: int = Query(50, ge=1, le=1000),
+    filter: Literal["all", "low_ctr"] = "all",
     db: Session = Depends(get_db),
 ):
+    """Top pages, each flagged when its CTR is under half of the site's typical page CTR at its
+    position (same rule as low-CTR keywords; pages have no brand split). `filter=low_ctr` lists
+    only those, biggest click shortfall (impressions × (typical − actual CTR)) first."""
     _get_property(db, property_id)
-    return _top(db, GscPageMetric, GscPageMetric.page, property_id, days, limit)
+    start, end = _window(db, property_id, days)
+    order = (
+        "impressions * (expected_ctr - ctr) desc" if filter == "low_ctr" else "clicks desc, impressions desc"
+    )
+    rows = db.execute(
+        text(f"""
+            with p as (
+                select page, sum(clicks) as clicks, sum(impressions) as impressions,
+                       sum(position * impressions) / nullif(sum(impressions), 0) as position
+                from gsc_page_metrics
+                where property_id = :pid and date between :start and :end
+                group by page
+            ),
+            -- Shopping / free-listing URLs (with "?") are left out of the typical CTR and never flagged
+            expected as (
+                select round(position::numeric) as bucket, sum(clicks)::float / sum(impressions) as ctr
+                from p
+                where impressions >= :exp_min_impr and position <= :max_pos + 0.5 and strpos(page, '?') = 0
+                group by 1
+                having count(*) >= :exp_min_pages
+            ),
+            r as (
+                select p.*, coalesce(p.clicks::float / nullif(p.impressions, 0), 0) as ctr, e.ctr as expected_ctr
+                from p left join expected e on e.bucket = round(p.position::numeric)
+            ),
+            f as (
+                select r.*, coalesce(impressions >= :min_impr and position <= :max_pos and strpos(page, '?') = 0
+                                     and ctr < :factor * expected_ctr, false) as low_ctr
+                from r
+            )
+            select page, clicks, impressions, ctr, coalesce(position, 0), expected_ctr, low_ctr
+            from f {"where low_ctr" if filter == "low_ctr" else ""}
+            order by {order}, page
+            limit :limit
+        """),
+        {
+            "pid": property_id,
+            "start": start,
+            "end": end,
+            "limit": limit,
+            "max_pos": keywords.LOW_CTR_MAX_POSITION,
+            "factor": keywords.LOW_CTR_FACTOR,
+            "exp_min_impr": keywords.EXPECTED_CTR_MIN_IMPRESSIONS,
+            "exp_min_pages": keywords.EXPECTED_CTR_MIN_KEYWORDS,
+            "min_impr": keywords.min_impressions(days),
+        },
+    ).all()
+    return [
+        DimensionRow(key=k, clicks=c, impressions=i, ctr=ctr, position=pos, expected_ctr=e, low_ctr=low)
+        for k, c, i, ctr, pos, e, low in rows
+    ]

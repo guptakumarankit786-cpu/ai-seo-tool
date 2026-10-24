@@ -41,6 +41,7 @@ docker compose exec backend python -m pytest -q
 | Keywords tab: high performance, questions, buying intent, long-tail, new, lost, rising, declining, low CTR, zero clicks | ✅ |
 | Striking distance (with potential clicks) and cannibalisation (sitelinks flagged) | ✅ |
 | Competitor keywords, seasonal keywords and one-off spikes | ✅ |
+| Low CTR pages (Top pages → Low CTR, sorted by click shortfall) | ✅ |
 | Indexing — "Why pages aren't indexed" via URL Inspection (sitemaps + search pages, 2,000/day quota) | ✅ |
 | Indexing — upload Search Console's Page indexing export (overview + per-reason URL lists) | ✅ |
 | Indexing — "worth fixing vs. safe to ignore" advice per reason | ✅ |

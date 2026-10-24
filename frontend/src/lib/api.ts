@@ -59,7 +59,13 @@ export type Summary = {
   previous_daily: (Totals & { date: string })[];
 };
 
-export type DimensionRow = Totals & { key: string; brand?: boolean | null };
+export type DimensionRow = Totals & {
+  key: string;
+  brand?: boolean | null;
+  expected_ctr?: number | null; // pages: site's typical page CTR at this position
+  low_ctr?: boolean | null;
+};
+export type PageFilter = "all" | "low_ctr";
 
 export type QuerySegment = "all" | "brand" | "non_brand";
 
@@ -339,8 +345,8 @@ export const api = {
     }),
   segments: (id: number, days: number, compare: Compare = "previous") =>
     request<Segments>(`/api/gsc/properties/${id}/segments?days=${days}&compare=${compare}`),
-  pages: (id: number, days: number, limit = 50) =>
-    request<DimensionRow[]>(`/api/gsc/properties/${id}/pages?days=${days}&limit=${limit}`),
+  pages: (id: number, days: number, limit = 50, filter: PageFilter = "all") =>
+    request<DimensionRow[]>(`/api/gsc/properties/${id}/pages?days=${days}&limit=${limit}&filter=${filter}`),
   keywords: (id: number, q: KeywordQuery) => {
     const params = new URLSearchParams({
       days: String(q.days),

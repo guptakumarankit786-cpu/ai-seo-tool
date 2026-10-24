@@ -1,6 +1,6 @@
 # Product Requirements — AI SEO Tool
 
-_Last updated: 2026-10-15_
+_Last updated: 2026-10-24_
 
 ## 1. Vision
 
@@ -40,6 +40,7 @@ The agency manages many client sites (dozens of Search Console properties) from 
 - Google returns at most ~5,000 keywords per day; the cut-off long tail had zero clicks in testing, so traffic numbers are unaffected.
 - Numbers verified identical to Google's API.
 - **Brand vs non-brand queries:** per-client brand terms (pre-filled from the domain, editable — add sub-brands and misspellings); brand / non-brand cards with change vs previous period and click share; daily brand vs non-brand chart; Top queries filter (All / Brand / Non-brand). Clicks Google hides at keyword level (anonymised queries) are shown separately, not guessed.
+- **Low CTR pages:** Top pages has an All / Low CTR switch. A page is low CTR when it ranks top 10 with enough impressions (100 per 28 days) and its CTR is under half of the site's own typical **page** CTR at that position (no brand split; Shopping `?` URLs excluded). The Low CTR list is sorted by click shortfall — usually a title / description to rewrite.
 
 ### 4.3 Keywords ✅
 A **Keywords** tab per client lists every keyword Google reported for the chosen range (7d–16m), with All / Brand / Non-brand, search, sortable columns, change vs the comparison period, and **combinable filter chips with counts**:

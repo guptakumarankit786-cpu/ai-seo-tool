@@ -1,6 +1,6 @@
 # Architecture — AI SEO Tool
 
-_Last updated: 2026-10-15_
+_Last updated: 2026-10-24_
 
 ## 1. Overview
 
@@ -92,6 +92,8 @@ Deleting a connection cascades to everything below it. Schema changes go through
 
 **Striking distance / cannibalisation** — `GET /properties/{id}/opportunities/{striking-distance|cannibalisation}?days≤90`. The first request for a range pulls `query+page` from Search Analytics (28 d ≈ 68k rows in ~6 s, 3 m ≈ 154k rows in ~30 s on a large site), stores it, and runs `ANALYZE` (without stats the planner chose nested loops taking minutes). Per-keyword totals and the main page are computed with **window functions over a single scan** — joins between per-keyword CTEs got row estimates of ~1 and nested-looped for minutes on real data. The site's typical CTR at position 3 is computed in a separate tiny query and passed in as parameters for the same reason. URLs containing `?` are excluded.
 
+**Low CTR pages** — `GET /properties/{id}/pages?filter=all|low_ctr` aggregates pages for the window in one SQL statement, learns the site's typical page CTR per rounded position (pages with ≥ 50 impressions, ≥ 5 pages per position, no `?` URLs) and flags pages under half of it, reusing the keyword low-CTR constants. `low_ctr` sorts by impressions × (typical − actual CTR). Live query, no cache (~0.05–0.4 s up to 16 months on a large site).
+
 **Seasonal / spikes** — `GET /properties/{id}/keywords/{seasonal|spikes}` read the monthly cache and classify in Python (fast: ~2k keywords × ~15 months). `run_sync` rebuilds the cache after the keyword cache. Competitor terms (`/competitor-terms`) feed a `t_competitor` flag in the keyword explorer and its cache key.
 
 **Advice** — `advice.py` normalises Google's wording (quotes, dashes, case) and maps each reason to a verdict + action; reasons sorted worth-fixing first.
@@ -133,4 +135,4 @@ Pages are thin server components wrapping client components in `<Suspense>` (req
 ```bash
 docker compose exec backend python -m pytest -q
 ```
-184 tests: OAuth, encryption, sync, reports maths, inspection discovery/quota/ordering, export parsing, advice, brand matching/segments, chunked/latest sync, comparisons, keyword types/filters/cache, striking distance / cannibalisation / live cache, seasonal / spikes / competitors, endpoints. Frontend: typecheck + lint; verified manually in the browser.
+187 tests: OAuth, encryption, sync, reports maths, inspection discovery/quota/ordering, export parsing, advice, brand matching/segments, chunked/latest sync, comparisons, keyword types/filters/cache, striking distance / cannibalisation / live cache, seasonal / spikes / competitors, low-CTR pages, endpoints. Frontend: typecheck + lint; verified manually in the browser.
