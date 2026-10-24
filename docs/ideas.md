@@ -34,6 +34,7 @@ All views are filter chips with counts that can be combined (e.g. Non-brand + St
 | 5m | Seasonal keywords (+ Spikes) | Peak repeats in the same months in both years; one-off surges shown as Spikes. | ✅ Built |
 | 5n | Other types | Product, local, etc. | 💡 Later |
 | 5o | **Hinglish keywords** | Per-client switch adding Hinglish question words (kya, kaise, kyu, kab, kahan, kitna…) and buying words (sasta, kharidna…). | 💡 Later |
+| 5p | **Low CTR for pages** | Same "Low CTR" check at page level: pages (e.g. in Top pages) with many impressions but CTR well below the site's typical CTR for their position — flagged/filterable like keywords. Pairs with idea #7 (AI title & description suggestions). _Added 2026-10-15._ | 💡 Later |
 
 ## Insights & AI
 
