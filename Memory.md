@@ -12,6 +12,8 @@ Decisions and learned facts, newest first. Add an entry whenever something is de
 - The "Property,Value" header was being read as the site "Value", so every real upload was rejected — sample fixtures had hidden this. Lesson: build test fixtures from a real file.
 - Accounts with UK/Indian English get British wording: "Alternative page with proper canonical tag", "Blocked due to unauthorised request (401)".
 - Chart.csv has blank Not indexed / Indexed values for its early days (impressions only).
+- **UNLOGGED cache rows vanish after an unclean shutdown** (Docker Desktop stopping, laptop power-off): Postgres crash recovery truncates them, but the cache entries survive. Keywords tab showed 0 keywords. Fix: an entry with no rows counts as missing and is rebuilt (keyword sets and query+page pulls).
+- Next.js 16.0.0–16.4.0 had critical advisories (RCE in image optimisation / `use cache`, Server Actions DoS) → upgraded to 16.4.3. The frontend container has its own `node_modules`: after a dependency change run `docker compose build frontend` and `docker compose up -d --force-recreate -V frontend`.
 - The connected Search Console account is a second Google account in Chrome (`/u/1/`); add `authuser=<email>` to Search Console URLs to open it.
 
 ## 2026-10-24

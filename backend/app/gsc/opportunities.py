@@ -51,8 +51,12 @@ def cached_entry(db: Session, prop: GscProperty, start: date, end: date) -> GscQ
         )
     ).first()
     now = datetime.now(UTC)
-    fresh = entry is not None and entry.built_at > now - CACHE_MAX_AGE and (
-        prop.last_synced_at is None or entry.built_at >= prop.last_synced_at
+    fresh = (
+        entry is not None
+        and entry.built_at > now - CACHE_MAX_AGE
+        and (prop.last_synced_at is None or entry.built_at >= prop.last_synced_at)
+        # UNLOGGED rows are emptied by Postgres after an unclean shutdown; the entry survives
+        and db.scalar(select(select(GscQueryPageCacheRow.id).where(GscQueryPageCacheRow.entry_id == entry.id).exists()))
     )
     if fresh:
         return entry

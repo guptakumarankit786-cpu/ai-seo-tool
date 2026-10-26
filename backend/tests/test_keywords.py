@@ -2,7 +2,7 @@
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 
 from app.gsc import keywords, sync
 from app.models import GscDailyMetric, GscKeywordCacheEntry, GscProperty, GscQueryMetric
@@ -215,6 +215,15 @@ class TestCache:
         db.commit()
 
         assert "fresh keyword" in by_query(get(client, seeded, limit=500))
+        assert self.entries(db) == 1
+
+    def test_rebuilds_when_postgres_emptied_the_rows(self, client, db, seeded):
+        # UNLOGGED rows are truncated by Postgres crash recovery; the entry row survives
+        before = by_query(get(client, seeded, limit=500))
+        db.execute(text("truncate gsc_keyword_cache_rows"))
+        db.commit()
+
+        assert by_query(get(client, seeded, limit=500)) == before
         assert self.entries(db) == 1
 
     def test_brand_terms_change_uses_a_new_set(self, client, db, seeded):

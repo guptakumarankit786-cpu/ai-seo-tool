@@ -15,7 +15,7 @@ from sqlalchemy import delete, func, select, text
 from sqlalchemy.orm import Session
 
 from app.gsc import brand
-from app.models import GscDailyMetric, GscKeywordCacheEntry
+from app.models import GscDailyMetric, GscKeywordCacheEntry, GscKeywordCacheRow
 
 # ---------- definitions (keep in sync with docs/ideas.md #5) ----------
 
@@ -282,7 +282,13 @@ def _cached_entry(
             GscKeywordCacheEntry.property_id == property_id, GscKeywordCacheEntry.cache_key == key
         )
     ).first()
-    if entry and (synced_at is None or entry.built_at >= synced_at):
+    # Rows live in an UNLOGGED table, which Postgres empties after an unclean shutdown while the
+    # entry survives — an entry without rows is treated as missing (a truly empty set just rebuilds).
+    if (
+        entry
+        and (synced_at is None or entry.built_at >= synced_at)
+        and db.scalar(select(select(GscKeywordCacheRow.id).where(GscKeywordCacheRow.entry_id == entry.id).exists()))
+    ):
         return entry.id
     if entry:
         db.delete(entry)

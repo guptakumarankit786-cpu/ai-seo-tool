@@ -64,6 +64,8 @@ backend/app/
 | `gsc_keyword_cache_rows` | **UNLOGGED** rows of a cached set: metrics, comparison metrics, typical CTR, brand flag, `t_<type>` flags. |
 | `gsc_query_page_cache_entries` | Live query+page pull per (property, start, end); refreshed after a sync or after 24 h; max 3 per property. |
 | `gsc_query_page_cache_rows` | **UNLOGGED** query, page, clicks, impressions, position (+ generated `query_norm`). |
+
+UNLOGGED tables are emptied by Postgres after an unclean shutdown while their entry rows survive, so a cache entry with no rows is treated as missing and rebuilt.
 | `gsc_monthly_keyword_cache` | Per property: full calendar months + JSONB `{keyword: {impressions[], clicks[]}}` for keywords with 1,000+ impressions; rebuilt after each sync (~5–15 s on a large site). |
 | `gsc_indexing_exports` | Uploaded Search Console exports (`overview` or per-reason `issue`). |
 | `gsc_indexing_export_reasons`, `gsc_indexing_export_urls` | Parsed rows of those uploads. |
@@ -135,4 +137,4 @@ Pages are thin server components wrapping client components in `<Suspense>` (req
 ```bash
 docker compose exec backend python -m pytest -q
 ```
-194 tests: OAuth, encryption, sync, reports maths, inspection discovery/quota/ordering, export parsing, advice, brand matching/segments, chunked/latest sync, comparisons, keyword types/filters/cache, striking distance / cannibalisation / live cache, seasonal / spikes / competitors, low-CTR pages, endpoints. Frontend: typecheck + lint; verified manually in the browser.
+196 tests: OAuth, encryption, sync, reports maths, inspection discovery/quota/ordering, export parsing, advice, brand matching/segments, chunked/latest sync, comparisons, keyword types/filters/cache, striking distance / cannibalisation / live cache, seasonal / spikes / competitors, low-CTR pages, endpoints. Frontend: typecheck + lint; verified manually in the browser.

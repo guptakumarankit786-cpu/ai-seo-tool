@@ -2,7 +2,7 @@
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 
 from app.gsc import google_api, opportunities
 from app.models import GscDailyMetric, GscProperty, GscQueryPageCacheEntry
@@ -145,6 +145,14 @@ class TestLiveCache:
         p.last_synced_at = datetime.now(UTC) + timedelta(seconds=1)
         db.commit()
         get(client, prop, "striking-distance")
+        assert len(live) == 2 and self.entries(db) == 1
+
+    def test_refetches_when_postgres_emptied_the_rows(self, client, db, prop, live):
+        first = get(client, prop, "striking-distance")
+        db.execute(text("truncate gsc_query_page_cache_rows"))
+        db.commit()
+
+        assert get(client, prop, "striking-distance")["items"] == first["items"]
         assert len(live) == 2 and self.entries(db) == 1
 
     def test_refetches_when_a_day_old(self, client, db, prop, live):
