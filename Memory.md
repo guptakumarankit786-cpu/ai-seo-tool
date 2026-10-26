@@ -2,6 +2,15 @@
 
 Decisions and learned facts, newest first. Add an entry whenever something is decided or discovered that isn't obvious from the code. **No client names or client data** — the repo is public.
 
+## 2026-10-26
+
+**Facts learned**
+- Real Page indexing exports (checked 2026-10-26): ZIP of `Chart.csv`, `Critical issues.csv`, `Non-critical issues.csv`, `Metadata.csv` (drill-down: `Chart.csv`, `Table.csv`, `Metadata.csv`). No BOM, LF line endings, no Trend column. `Metadata.csv` is `Property,Value` + `Sitemap,All known pages` (+ `Issue,<reason>`) — it **never names the site**. File name is `<domain>-Coverage-<date>.zip`.
+- The "Property,Value" header was being read as the site "Value", so every real upload was rejected — sample fixtures had hidden this. Lesson: build test fixtures from a real file.
+- Accounts with UK/Indian English get British wording: "Alternative page with proper canonical tag", "Blocked due to unauthorised request (401)".
+- Chart.csv has blank Not indexed / Indexed values for its early days (impressions only).
+- The connected Search Console account is a second Google account in Chrome (`/u/1/`); add `authuser=<email>` to Search Console URLs to open it.
+
 ## 2026-10-24
 
 **Decisions**

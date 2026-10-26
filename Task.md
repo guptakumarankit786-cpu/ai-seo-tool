@@ -1,6 +1,6 @@
 # Tasks
 
-_Last updated: 2026-10-24. Raw ideas live in [docs/ideas.md](docs/ideas.md); only move them here when the user decides to build them._
+_Last updated: 2026-10-26. Raw ideas live in [docs/ideas.md](docs/ideas.md); only move them here when the user decides to build them._
 
 ## ✅ Done
 - [x] Repo setup: `main` (stable) + `test` (development), public repo hygiene, `.gitattributes` (LF)
@@ -18,11 +18,11 @@ _Last updated: 2026-10-24. Raw ideas live in [docs/ideas.md](docs/ideas.md); onl
 - [x] Keywords tab (part 2): Striking distance (main page 4–20, potential clicks at position 3) and Cannibalisation (2+ pages ≥ 10%, sitelinks flagged) from live query+page data, cached until next sync / 24 h
 - [x] Keywords tab (part 3): Competitors chip with editable competitor terms; Seasonal (peak repeats in both years, status in / coming up / off season) and Spikes (one-off surges) from a monthly cache rebuilt after sync
 - [x] Low CTR pages: Top pages All / Low CTR switch, page flagged when CTR < half the site's typical page CTR at its position (ideas #5p)
-- [x] Backend test suite (187 tests)
+- [x] Export upload tested on a real Search Console export: fixed header-row bug (every real upload was rejected), site check from URLs / file name, British-spelling reasons
+- [x] Backend test suite (194 tests)
 - [x] Project docs: PRD, Architecture, Rules, Design, Task, Memory
 
 ## 🔜 Next — GSC phase (approved 2026-10-15, see docs/ideas.md)
-- [ ] Test the export upload with a **real** Search Console export and adjust the parser if needed
 - [ ] Decide what to merge from `test` into `main` (first stable release)
 
 ## 📋 Backlog (approved ideas, not started)

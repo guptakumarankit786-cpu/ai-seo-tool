@@ -1,6 +1,6 @@
 # Architecture — AI SEO Tool
 
-_Last updated: 2026-10-24_
+_Last updated: 2026-10-26_
 
 ## 1. Overview
 
@@ -84,7 +84,7 @@ Deleting a connection cascades to everything below it. Schema changes go through
 3. Queue: never-inspected first (sitemap before search-only), then results older than 7 days.
 4. Inspect with 10 threads; access token refreshed during long runs; 429 stops the run as `partial`.
 
-**Export upload** — `POST /properties/{id}/indexing/uploads` (multipart). Files recognised by header, not name. Property in `Metadata.csv` must match.
+**Export upload** — `POST /properties/{id}/indexing/uploads` (multipart). Files recognised by header, not name. Real exports have a `Property,Value` header row and no site in `Metadata.csv`, so the site comes from the URLs' host or Google's file name; it must be the property's domain or a subdomain of it. Reason names are normalised for quotes, dashes and British spellings ("Alternative page…", "unauthorised").
 
 **Brand vs non-brand** — a query is brand if `query_norm` (a Postgres **generated column**: `lower(query)` with spaces/punctuation removed) contains any brand term normalised the same way (so "acme co" = "acmeco"). Matching is a plain `LIKE` at read time, so editing terms takes effect immediately; 16 months (~2.4M keyword rows) takes ~1.5 s, 28 days ~0.2 s. `/segments` returns brand / non-brand totals (current + previous period), click share, a daily split, and the clicks hidden by Google (site total − query-level total). `/queries?segment=brand|non_brand` filters top queries.
 
@@ -135,4 +135,4 @@ Pages are thin server components wrapping client components in `<Suspense>` (req
 ```bash
 docker compose exec backend python -m pytest -q
 ```
-187 tests: OAuth, encryption, sync, reports maths, inspection discovery/quota/ordering, export parsing, advice, brand matching/segments, chunked/latest sync, comparisons, keyword types/filters/cache, striking distance / cannibalisation / live cache, seasonal / spikes / competitors, low-CTR pages, endpoints. Frontend: typecheck + lint; verified manually in the browser.
+194 tests: OAuth, encryption, sync, reports maths, inspection discovery/quota/ordering, export parsing, advice, brand matching/segments, chunked/latest sync, comparisons, keyword types/filters/cache, striking distance / cannibalisation / live cache, seasonal / spikes / competitors, low-CTR pages, endpoints. Frontend: typecheck + lint; verified manually in the browser.

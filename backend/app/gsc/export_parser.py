@@ -8,6 +8,9 @@ recognised by their header row instead:
   URL list        URL, Last crawled                             ("Table.csv" of a single-issue drill-down)
   Metadata        key, value rows (Property, Issue, ...)        ("Metadata.csv")
 
+Real exports (checked 2026-10-26) start Metadata.csv with a "Property,Value" header and don't name the
+site at all, so the site is taken from the export's URLs or Google's file name ("example.com-Coverage-…zip").
+
 A single CSV upload is also accepted.
 """
 
@@ -17,6 +20,7 @@ import re
 import zipfile
 from dataclasses import dataclass, field
 from datetime import date, datetime
+from urllib.parse import urlsplit
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 MAX_UNZIPPED_BYTES = 100 * 1024 * 1024
@@ -112,10 +116,19 @@ def _apply_csv(result: ParsedExport, name: str, text: str) -> None:
             if len(row) < 2:
                 continue
             key, value = row[0].lower(), row[1]
-            if key == "property":
+            if key == "property" and value.lower() != "value":  # skip the "Property,Value" header
                 result.site_url = value
             elif key in ("issue", "reason"):
                 result.issue = value
+
+
+def _site_from(filename: str, urls: list[ParsedUrl]) -> str | None:
+    """Best guess of the exported site when Metadata.csv doesn't say: a listed URL's host, else Google's
+    file name ("example.com-Coverage-…", "https___www.example.com_-Coverage-…")."""
+    if urls:
+        return urlsplit(urls[0].url).hostname
+    m = re.match(r"(?:https?_+)?(.+?)_?-coverage", filename.rsplit("/", 1)[-1], re.IGNORECASE)
+    return m.group(1) if m and "." in m.group(1) else None
 
 
 def _decode(raw: bytes) -> str:
@@ -150,6 +163,7 @@ def parse_export(filename: str, data: bytes) -> ParsedExport:
         raise ExportError(
             "This doesn't look like a Page indexing export — no reasons table or URL list was found."
         )
+    result.site_url = result.site_url or _site_from(filename, result.urls)
     if result.kind == "issue" and not result.issue:
         raise ExportError(
             "This URL list doesn't say which reason it belongs to. Upload the full ZIP from the reason's page "

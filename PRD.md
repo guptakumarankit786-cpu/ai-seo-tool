@@ -1,6 +1,6 @@
 # Product Requirements — AI SEO Tool
 
-_Last updated: 2026-10-24_
+_Last updated: 2026-10-26_
 
 ## 1. Vision
 
@@ -89,7 +89,8 @@ Google offers **no API** for the Page Indexing report, so there are two sources:
 - User uploads the Page indexing export (ZIP/CSV) from Search Console.
 - Shows Search Console's exact reasons, page counts, source and validation status.
 - Uploading a single reason's export adds its example URLs.
-- Exports from a different site are rejected.
+- Exports from a different site are rejected. Google's export doesn't name the site, so it's read from the exported URLs or Google's file name (`example.com-Coverage-…zip`); a renamed overview file can't be checked.
+- Tested on a real export (2026-10-26): reasons, page counts, indexed / not-indexed totals and the 404 URL list match Search Console exactly.
 
 **c) Worth fixing vs. safe to ignore**
 - Every reason gets a verdict — **Worth fixing / Check pages / Safe to ignore** — with a one-line explanation and a concrete action.

@@ -7,11 +7,11 @@ from app.gsc import advice
 from app.gsc.export_parser import ExportError, parse_export
 
 
-def make_zip(files: dict[str, str]) -> bytes:
+def make_zip(files: dict[str, str], bom: bool = True) -> bytes:
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as zf:
         for name, text in files.items():
-            zf.writestr(name, "﻿" + text)  # Search Console CSVs carry a UTF-8 BOM
+            zf.writestr(name, ("﻿" if bom else "") + text)  # older Search Console CSVs carry a UTF-8 BOM
     return buf.getvalue()
 
 
@@ -42,6 +42,41 @@ DRILLDOWN = {
     "Metadata.csv": "Issue,Crawled - currently not indexed\nProperty,sc-domain:example.com\n",
 }
 
+# Anonymised copies of real exports downloaded 2026-10-26: same files, headers, layout and wording
+# (no BOM, "Property,Value" header, no site in Metadata, blank early chart rows); site and numbers made up.
+REAL_OVERVIEW = {
+    "Chart.csv": (
+        "Date,Not indexed,Indexed,Impressions\n"
+        "2026-07-28,,,5919\n"
+        "2026-07-29,,,6031\n"
+        "2026-10-22,443,103,5775\n"
+        "2026-10-23,443,103,6011\n"
+    ),
+    "Critical issues.csv": (
+        "Reason,Source,Validation,Pages\n"
+        "Alternative page with proper canonical tag,Website,Not Started,244\n"
+        "Not found (404),Website,Not Started,50\n"
+        "Excluded by ‘noindex’ tag,Website,Not Started,43\n"
+        "Blocked due to unauthorised request (401),Website,Not Started,1\n"
+        "Crawled - currently not indexed,Google systems,Not Started,26\n"
+        "Discovered – currently not indexed,Google systems,Not Started,3\n"
+        '"Duplicate, Google chose different canonical than user",Google systems,Not Started,76\n'
+    ),
+    "Non-critical issues.csv": 'Reason,Source,Validation,Pages\n"Indexed, though blocked by robots.txt",Website,Not Started,2',
+    "Metadata.csv": "Property,Value\nSitemap,All known pages",
+}
+REAL_OVERVIEW_NAME = "example.com-Coverage-2026-10-26.zip"
+
+REAL_DRILLDOWN = {
+    "Chart.csv": "Date,Affected pages\n2026-08-05,58\n2026-10-23,50\n",
+    "Table.csv": (
+        "URL,Last crawled\n"
+        "https://www.example.com/collections/test-sale?page=4,2026-10-24\n"
+        "https://www.example.com/products/test-1,2026-10-20\n"
+    ),
+    "Metadata.csv": "Property,Value\nSitemap,All known pages\nIssue,Not found (404)",
+}
+
 
 class TestAdvice:
     @pytest.mark.parametrize(
@@ -56,6 +91,8 @@ class TestAdvice:
             ("Not found (404)", "review"),
             ("Page with redirect", "ignore"),
             ("Alternate page with proper canonical tag", "ignore"),
+            ("Alternative page with proper canonical tag", "ignore"),  # UK/Indian-English accounts
+            ("Blocked due to unauthorised request (401)", "ignore"),
             ("Some brand-new reason Google adds later", "review"),
         ],
     )
@@ -68,6 +105,24 @@ class TestAdvice:
 
 
 class TestParser:
+    def test_real_overview_format(self):
+        parsed = parse_export(REAL_OVERVIEW_NAME, make_zip(REAL_OVERVIEW, bom=False))
+
+        assert parsed.kind == "overview"
+        assert parsed.site_url == "example.com"  # from Google's file name, not the "Property,Value" header
+        assert sum(r.pages for r in parsed.reasons if r.critical) == parsed.not_indexed == 443
+        assert (parsed.chart_date.isoformat(), parsed.indexed) == ("2026-10-23", 103)
+        assert [r.reason for r in parsed.reasons if r.critical is False] == ["Indexed, though blocked by robots.txt"]
+
+    def test_real_drilldown_format(self):
+        parsed = parse_export("export.zip", make_zip(REAL_DRILLDOWN, bom=False))
+
+        assert (parsed.kind, parsed.issue, parsed.site_url) == ("issue", "Not found (404)", "www.example.com")
+        assert len(parsed.urls) == 2
+
+    def test_renamed_overview_has_no_site(self):
+        assert parse_export("export.zip", make_zip(REAL_OVERVIEW, bom=False)).site_url is None
+
     def test_overview_zip(self):
         parsed = parse_export("example.com-Coverage-2026-10-12.zip", make_zip(OVERVIEW))
 
@@ -171,6 +226,29 @@ class TestUploadEndpoints:
 
         assert resp.status_code == 422
         assert "someone-else.com" in resp.json()["detail"]
+
+    def test_accepts_real_format_exports(self, client, prop):
+        assert self.upload_real(client, prop, REAL_OVERVIEW, REAL_OVERVIEW_NAME).status_code == 201
+        assert self.upload_real(client, prop, REAL_DRILLDOWN, "export.zip").status_code == 201
+
+        reasons = client.get(f"/api/gsc/properties/{prop.id}/indexing/export").json()["reasons"]
+        by_reason = {r["reason"]: r for r in reasons}
+        assert by_reason["Alternative page with proper canonical tag"]["advice"]["verdict"] == "ignore"
+        assert by_reason["Not found (404)"]["urls_uploaded"] == 2
+
+    def test_rejects_real_export_from_a_different_site(self, client, prop):
+        resp = self.upload_real(client, prop, REAL_OVERVIEW, "someone-else.com-Coverage-2026-10-26.zip")
+        assert resp.status_code == 422
+        assert "someone-else.com" in resp.json()["detail"]
+
+        drilldown = {**REAL_DRILLDOWN, "Table.csv": "URL,Last crawled\nhttps://someone-else.com/a,2026-10-24\n"}
+        assert self.upload_real(client, prop, drilldown, "export.zip").status_code == 422
+
+    def upload_real(self, client, prop, files, name):
+        return client.post(
+            f"/api/gsc/properties/{prop.id}/indexing/uploads",
+            files={"file": (name, make_zip(files, bom=False), "application/zip")},
+        )
 
     def test_rejects_unreadable_upload(self, client, prop):
         resp = client.post(

@@ -1,5 +1,6 @@
 from datetime import UTC, date, datetime, timedelta
 from typing import Annotated
+from urllib.parse import urlsplit
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel, ConfigDict
@@ -249,8 +250,17 @@ class ExportUrlList(BaseModel):
     items: list[ExportUrl]
 
 
+def _host(site: str) -> str:
+    """"sc-domain:example.com", "https://www.example.com/" or "www.example.com" → "example.com"."""
+    site = site.strip().lower().removeprefix("sc-domain:")
+    if "://" in site:
+        site = urlsplit(site).hostname or ""
+    return site.rstrip("/").removeprefix("www.")
+
+
 def _same_property(site_url: str, exported: str) -> bool:
-    return site_url.strip().lower().rstrip("/") == exported.strip().lower().rstrip("/")
+    prop, exp = _host(site_url), _host(exported)
+    return exp == prop or exp.endswith("." + prop)  # a domain property covers its subdomains
 
 
 def _latest_issue_exports(db: Session, property_id: int) -> dict[str, GscIndexingExport]:

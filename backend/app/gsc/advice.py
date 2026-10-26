@@ -132,7 +132,8 @@ _FALLBACK = Advice(
 
 
 def normalize_reason(reason: str) -> str:
-    """Match Search Console's wording regardless of quote/dash style or case."""
+    """Match Search Console's wording regardless of quote/dash style, case or British spelling
+    (UK/Indian-English accounts say "Alternative page…" and "unauthorised")."""
     return (
         reason.strip()
         .lower()
@@ -140,6 +141,8 @@ def normalize_reason(reason: str) -> str:
         .replace("’", "'")
         .replace("–", "-")
         .replace("—", "-")
+        .replace("alternative page", "alternate page")
+        .replace("unauthorised", "unauthorized")
     )
 
 
