@@ -23,6 +23,7 @@ _Last updated: 2026-10-26. Raw ideas live in [docs/ideas.md](docs/ideas.md); onl
 - [x] Backend test suite (196 tests)
 - [x] Project docs: PRD, Architecture, Rules, Design, Task, Memory
 - [x] First stable release **v0.1.0** (2026-10-26): `main` fast-forwarded to `test`, tagged; clean Docker rebuild + 194 tests + smoke test passed
+- [x] Release **v0.1.1** (2026-10-26): empty-Keywords-cache fix + Next.js 16.4.3 security upgrade
 
 ## 🔜 Next — GSC phase (approved 2026-10-15, see docs/ideas.md)
 - [ ] Pick the next feature from the backlog / ideas
