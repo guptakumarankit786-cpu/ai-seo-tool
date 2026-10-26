@@ -4,6 +4,9 @@ Decisions and learned facts, newest first. Add an entry whenever something is de
 
 ## 2026-10-26
 
+**Decisions**
+- First stable release **v0.1.0**: everything on `test` (all features tested on real data) went to `main` as a fast-forward, keeping the feature-by-feature history. Releases are annotated tags on `main`; development continues on `test`.
+
 **Facts learned**
 - Real Page indexing exports (checked 2026-10-26): ZIP of `Chart.csv`, `Critical issues.csv`, `Non-critical issues.csv`, `Metadata.csv` (drill-down: `Chart.csv`, `Table.csv`, `Metadata.csv`). No BOM, LF line endings, no Trend column. `Metadata.csv` is `Property,Value` + `Sitemap,All known pages` (+ `Issue,<reason>`) — it **never names the site**. File name is `<domain>-Coverage-<date>.zip`.
 - The "Property,Value" header was being read as the site "Value", so every real upload was rejected — sample fixtures had hidden this. Lesson: build test fixtures from a real file.
@@ -18,7 +21,7 @@ Decisions and learned facts, newest first. Add an entry whenever something is de
 
 **Facts learned**
 - On a large site the page-level typical CTR at positions 1–5 is only ~0.8–1.6%. Page impressions include many long-tail queries, so judge pages against page baselines, not keyword ones.
-- Rebuilding/recreating the backend container loses the pip-installed `pytest` and `python-multipart`; the API then fails to start ("Form data requires python-multipart"). Reinstall and restart the backend (tech debt: bake them into the image).
+- A stale backend image lacked `pytest` and `python-multipart` (the API failed with "Form data requires python-multipart"). The Dockerfile already installs both; a `docker compose build --no-cache` on 2026-10-26 fixed it — rebuild images when requirements change.
 
 ## 2026-10-15
 

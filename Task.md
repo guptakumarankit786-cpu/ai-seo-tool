@@ -21,16 +21,16 @@ _Last updated: 2026-10-26. Raw ideas live in [docs/ideas.md](docs/ideas.md); onl
 - [x] Export upload tested on a real Search Console export: fixed header-row bug (every real upload was rejected), site check from URLs / file name, British-spelling reasons
 - [x] Backend test suite (194 tests)
 - [x] Project docs: PRD, Architecture, Rules, Design, Task, Memory
+- [x] First stable release **v0.1.0** (2026-10-26): `main` fast-forwarded to `test`, tagged; clean Docker rebuild + 194 tests + smoke test passed
 
 ## 🔜 Next — GSC phase (approved 2026-10-15, see docs/ideas.md)
-- [ ] Decide what to merge from `test` into `main` (first stable release)
+- [ ] Pick the next feature from the backlog / ideas
 
 ## 📋 Backlog (approved ideas, not started)
 - [ ] Automatic scheduled syncs from Search Console (ideas #3)
 
 ## 🛠 Tech debt
 - [ ] Move background jobs (sync, inspection) out of the API process into a worker — today a running job blocks backend auto-reload and dies on restart
-- [ ] Rebuild the backend image so `pytest` and `python-multipart` are baked in (currently also pip-installed in the running container)
 - [ ] App login / access control before hosting anywhere non-local
 - [ ] Frontend automated tests (Playwright) once screens settle
 - [ ] Production config: `next build` / `next start`, non-reload uvicorn, HTTPS redirect URI
