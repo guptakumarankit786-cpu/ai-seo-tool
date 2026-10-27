@@ -28,7 +28,9 @@ _Last updated: 2026-10-27. Raw ideas live in [docs/ideas.md](docs/ideas.md); onl
 - [x] Release **v0.1.2** (2026-10-27): Integrations redesigned as a clients list grouped by brand
 
 ## 🔜 Next — GSC phase (approved 2026-10-15, see docs/ideas.md)
-- [ ] Pick the next feature from the backlog / ideas
+- [ ] Pages tab part 1: page types (Collections / Products / Blogs / Pages / Home) + filter chips (ideas #13a, #13b)
+- [ ] Pages tab part 2: page detail — chart, keywords bringing the page traffic, indexing status (#13c)
+- [ ] Pages tab part 3: content decay (#13d)
 
 ## 📋 Backlog (approved ideas, not started)
 - [ ] Automatic scheduled syncs from Search Console (ideas #3)

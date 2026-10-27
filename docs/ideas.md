@@ -36,6 +36,19 @@ All views are filter chips with counts that can be combined (e.g. Non-brand + St
 | 5o | **Hinglish keywords** | Per-client switch adding Hinglish question words (kya, kaise, kyu, kab, kahan, kitna…) and buying words (sasta, kharidna…). | 💡 Later |
 | 5p | **Low CTR for pages** | Same "Low CTR" check at page level: pages (e.g. in Top pages) with many impressions but CTR well below the site's typical CTR for their position — flagged/filterable like keywords. Pairs with idea #7 (AI title & description suggestions). _Added 2026-10-15._ | ✅ Built |
 
+## Performance — page views (Pages tab)
+
+Agreed 2026-10-27: a **Pages** tab like the Keywords tab, built in parts. All synced clients so far are Shopify stores (home / products / collections / blogs / pages); blogs get many impressions but the lowest CTR.
+
+| # | View | Definition / decision | Status |
+|---|------|------|--------|
+| 13a | **Page types** (part 1) | Cards for Collections / Products / Blogs / Pages / Home (+ Other, Shopping listings) with clicks, impressions, CTR, position and change; detected from the URL path. | 🎯 Approved |
+| 13b | **Page filter chips** (part 1) | Combinable with page type: Low CTR, High performance, Rising, Declining, New, Lost, Zero clicks, Striking distance (position 4–20). | 🎯 Approved |
+| 13c | **Page detail** (part 2) | Open a page: daily chart, the keywords bringing it traffic (position, CTR), its indexing status. | 🎯 Approved |
+| 13d | **Content decay** (part 3) | Pages (mostly blogs) whose clicks fell steadily for 3+ months — refresh candidates. | 🎯 Approved |
+| 13e | Pages vs indexing | Sitemap pages with no impressions; pages with impressions that Google says aren't indexed (clients with inspections only). | 💡 Later |
+| 13f | **Service-brand support** | Today's clients are mostly D2C / e-commerce. Add features for **service brands** too: their own page types (service pages, location pages, case studies, contact / lead pages) and the views that matter for them (e.g. local / "near me" keywords, lead pages). Page types should become configurable per client rather than Shopify-only. _Added 2026-10-27._ | 💡 Later |
+
 ## Insights & AI
 
 | # | Idea | Status |
@@ -46,6 +59,7 @@ All views are filter chips with counts that can be combined (e.g. Non-brand + St
 | 9 | **AI layer** across all insights — explanations, rewrites, recovery plans. | 💡 Later |
 | 10 | **Borrow from open-seo** — device/country/text filters, GA4 join, reports, AI chat over our data (striking distance & new keywords moved to 5a/5b). | 💡 Later |
 | 11 | **Revenue per keyword** — after GA4 is connected, estimate how much revenue keywords bring (GSC page↔keyword joined with GA4 page revenue). | 💡 Later (after GA4) |
+| 12 | **Track page changes** — mark a page as changed (e.g. "new title on Oct 20") and see whether its CTR, clicks and position went up afterwards (before vs after, same length). Pairs with #7 and the Low CTR pages list. _Added 2026-10-27._ | 💡 Later |
 
 ## Indexing — "Why pages aren't indexed"
 
