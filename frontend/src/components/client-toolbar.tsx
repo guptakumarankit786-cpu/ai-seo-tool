@@ -10,8 +10,8 @@ import { api, fmt, type DateRange, type Property } from "@/lib/api";
 const DAY = 86_400_000;
 const addDays = (iso: string, n: number) => new Date(Date.parse(iso) + n * DAY).toISOString().slice(0, 10);
 
-/** Earliest day the chosen period (and its comparison) needs, mirroring the backend's windows. */
-function earliestNeeded(r: DateRange, dataEnd: string): string {
+/** First day of the chosen period and the earliest day it (or its comparison) needs, mirroring the backend's windows. */
+function neededDays(r: DateRange, dataEnd: string): { start: string; needed: string } {
   const end = r.start && r.end ? r.end : dataEnd;
   const start = r.start && r.end ? r.start : addDays(dataEnd, 1 - r.days);
   const length = Math.round((Date.parse(end) - Date.parse(start)) / DAY) + 1;
@@ -21,13 +21,13 @@ function earliestNeeded(r: DateRange, dataEnd: string): string {
     custom: r.compareStart,
     none: null,
   }[r.compare];
-  return compareStart && compareStart < start ? compareStart : start;
+  return { start, needed: compareStart && compareStart < start ? compareStart : start };
 }
 
 /** "Sync 6 months to fill it" when the period reaches before the stored data, else null. */
 function missingHistory(r: DateRange, p: Property): string | null {
   if (!p.data_start || !p.data_end) return null;
-  const needed = earliestNeeded(r, p.data_end);
+  const { start, needed } = neededDays(r, p.data_end);
   if (needed >= p.data_start) return null;
   const daysBack = (Date.now() - Date.parse(needed)) / DAY - 3; // Google's ~3-day lag
   const fix =
@@ -38,7 +38,10 @@ function missingHistory(r: DateRange, p: Property): string | null {
         : daysBack <= 486
           ? "Sync “Full 16 months” to fill it."
           : "Google only keeps 16 months, so the oldest part can't be filled.";
-  return `This period needs data from ${fmt.date(needed)}, stored data starts ${fmt.date(p.data_start)}. ${fix}`;
+  // The period itself reaching before stored data matters most: its numbers only cover the stored part.
+  if (start < p.data_start)
+    return `Stored data starts ${fmt.date(p.data_start)}, so the numbers below cover only ${fmt.date(p.data_start)} – ${fmt.date(p.data_end)} of this period. ${fix}`;
+  return `The comparison needs data from ${fmt.date(needed)}, stored data starts ${fmt.date(p.data_start)}. ${fix}`;
 }
 
 function Step({ n, label, children }: { n: number; label: string; children: React.ReactNode }) {
