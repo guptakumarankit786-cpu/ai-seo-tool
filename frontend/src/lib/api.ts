@@ -21,6 +21,9 @@ export type Property = {
   latest_run: SyncRun | null;
   data_start: string | null;
   data_end: string | null;
+  pages_inspected: number;
+  last_inspected_at: string | null;
+  export_uploaded_at: string | null;
 };
 
 export type SyncRequest = { mode: "range"; days: number } | { mode: "latest" };

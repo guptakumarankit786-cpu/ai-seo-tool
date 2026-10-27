@@ -1,6 +1,6 @@
 # Architecture — AI SEO Tool
 
-_Last updated: 2026-10-26_
+_Last updated: 2026-10-27_
 
 ## 1. Overview
 
@@ -78,6 +78,8 @@ Deleting a connection cascades to everything below it. Schema changes go through
 
 **Performance sync** — `POST /properties/{id}/sync` with `{"mode": "range", "days": 90|180|486}` or `{"mode": "latest"}` creates a run and returns 202. The range ends 3 days ago (Google data lag); `latest` starts 3 days before the newest stored day (Google may revise recent days). A background task splits the range into **30-day chunks, newest first**; for each chunk it pulls `date`, `date+query`, `date+page` (paged by 25k rows), **replaces** that chunk and commits, updating `chunks_done/chunks_total`. An interrupted run keeps finished chunks; re-running replaces them (idempotent). Full 16 months on a large site: ~2.8M rows in ~12 min.
 
+**Clients list** — `GET /api/gsc/status` returns every property with its data range, latest sync run and indexing counts (`pages_inspected`, `last_inspected_at`, `export_uploaded_at` of the newest overview export). The frontend groups properties into brands by host (scheme, `www.` and path removed) and derives the status: data ending ≤ 1 day after the expected newest day (today − 3) is up to date.
+
 **Comparisons** — `summary` and `segments` take `compare=previous|year`. *previous* = the equal-length window before; *year* = same window 364 days earlier (weekday-aligned). If stored data doesn't reach back to the start of the comparison window, comparison totals are `null` (no partial comparisons).
 
 **Indexing inspection** — `POST /properties/{id}/indexing` (user-triggered):
@@ -137,4 +139,4 @@ Pages are thin server components wrapping client components in `<Suspense>` (req
 ```bash
 docker compose exec backend python -m pytest -q
 ```
-196 tests: OAuth, encryption, sync, reports maths, inspection discovery/quota/ordering, export parsing, advice, brand matching/segments, chunked/latest sync, comparisons, keyword types/filters/cache, striking distance / cannibalisation / live cache, seasonal / spikes / competitors, low-CTR pages, endpoints. Frontend: typecheck + lint; verified manually in the browser.
+197 tests: OAuth, encryption, sync, reports maths, inspection discovery/quota/ordering, export parsing, advice, brand matching/segments, chunked/latest sync, comparisons, keyword types/filters/cache, striking distance / cannibalisation / live cache, seasonal / spikes / competitors, low-CTR pages, endpoints. Frontend: typecheck + lint; verified manually in the browser.

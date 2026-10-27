@@ -1,11 +1,11 @@
 """16-month history: chunked sync, "sync latest", data range and year-over-year comparison."""
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from sqlalchemy import func, select
 
 from app.gsc import google_api, sync
-from app.models import GscDailyMetric, GscQueryMetric, GscSyncRun
+from app.models import GscDailyMetric, GscIndexingExport, GscQueryMetric, GscSyncRun, GscUrlInspection
 from tests.conftest import days_ago
 
 
@@ -106,6 +106,32 @@ class TestPropertyDataRange:
 
         assert body["data_start"] == days_ago(400).isoformat()
         assert body["data_end"] == days_ago(3).isoformat()
+
+
+class TestPropertyIndexingStatus:
+    def test_counts_inspected_pages_and_latest_overview_export(self, client, db, prop):
+        body = client.get(f"/api/gsc/properties/{prop.id}").json()
+        assert (body["pages_inspected"], body["last_inspected_at"], body["export_uploaded_at"]) == (0, None, None)
+
+        now = datetime.now(UTC)
+        db.add_all(
+            [
+                GscUrlInspection(property_id=prop.id, url="https://example.com/a", inspected_at=now),
+                GscUrlInspection(property_id=prop.id, url="https://example.com/b", inspected_at=now - timedelta(days=1)),
+                GscUrlInspection(property_id=prop.id, url="https://example.com/c"),  # waiting, not inspected
+                GscIndexingExport(property_id=prop.id, kind="issue", filename="404.zip", issue="Not found (404)"),
+            ]
+        )
+        db.commit()
+
+        body = client.get(f"/api/gsc/properties/{prop.id}").json()
+        assert body["pages_inspected"] == 2
+        assert body["last_inspected_at"] is not None
+        assert body["export_uploaded_at"] is None  # a single reason's export isn't the overview
+
+        db.add(GscIndexingExport(property_id=prop.id, kind="overview", filename="example.com-Coverage.zip"))
+        db.commit()
+        assert client.get("/api/gsc/status").json()["connections"][0]["properties"][0]["export_uploaded_at"]
 
 
 class TestYearOverYear:

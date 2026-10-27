@@ -1,6 +1,6 @@
 # Product Requirements — AI SEO Tool
 
-_Last updated: 2026-10-26_
+_Last updated: 2026-10-27_
 
 ## 1. Vision
 
@@ -31,6 +31,7 @@ The agency manages many client sites (dozens of Search Console properties) from 
 - Connect one or more Google accounts via OAuth (read-only Search Console scope).
 - Auto-discover every Search Console property the account can see.
 - Per client: **Performance** and **Indexing** pages.
+- **Clients list** (Integrations page): one row per **brand** — properties of the same site (Domain, `https://www.`, `http://`) are grouped; the brand shows the property with the newest data. Each brand shows its **search data** status (Up to date / N days behind / No data yet / Sync failed / Syncing… plus the stored date range), its **indexing data** (pages inspected, latest export upload) and a manual **Sync** button. Filter chips with counts by status, search, and an expandable list of the brand's other properties, each with its own Sync.
 - Disconnect removes the account, its tokens and all synced data.
 
 ### 4.2 Performance ✅

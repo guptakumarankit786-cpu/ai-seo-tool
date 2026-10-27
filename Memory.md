@@ -2,6 +2,15 @@
 
 Decisions and learned facts, newest first. Add an entry whenever something is decided or discovered that isn't obvious from the code. **No client names or client data** — the repo is public.
 
+## 2026-10-27
+
+**Decisions**
+- Integrations page = **clients list grouped by brand** (user chose this over one row per property) and it shows **indexing data** too. A brand's row uses the property with the newest data (Domain on ties); the rest are under "n more properties".
+- No "sync all" button — syncs stay per client, user-triggered (product rule).
+
+**Facts learned**
+- Of 38 properties, 33 brands: 26 with no data, 6 ~2 weeks behind, 1 up to date (2026-10-27). Some brands have both `http://` and `https://` URL properties, with data on only one.
+
 ## 2026-10-26
 
 **Decisions**

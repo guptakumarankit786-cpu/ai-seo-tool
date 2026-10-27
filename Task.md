@@ -1,6 +1,6 @@
 # Tasks
 
-_Last updated: 2026-10-26. Raw ideas live in [docs/ideas.md](docs/ideas.md); only move them here when the user decides to build them._
+_Last updated: 2026-10-27. Raw ideas live in [docs/ideas.md](docs/ideas.md); only move them here when the user decides to build them._
 
 ## ✅ Done
 - [x] Repo setup: `main` (stable) + `test` (development), public repo hygiene, `.gitattributes` (LF)
@@ -20,7 +20,8 @@ _Last updated: 2026-10-26. Raw ideas live in [docs/ideas.md](docs/ideas.md); onl
 - [x] Low CTR pages: Top pages All / Low CTR switch, page flagged when CTR < half the site's typical page CTR at its position (ideas #5p)
 - [x] Export upload tested on a real Search Console export: fixed header-row bug (every real upload was rejected), site check from URLs / file name, British-spelling reasons
 - [x] Fix: Keywords tab empty after an unclean shutdown (UNLOGGED cache rows lost) — empty cache entries are rebuilt; Next.js 16.4.0 → 16.4.3 (critical security advisories)
-- [x] Backend test suite (196 tests)
+- [x] Integrations redesign: clients grouped by brand, search-data status (up to date / behind / no data / failed / syncing) with range, indexing data (pages inspected, export), manual Sync, status filter chips, search
+- [x] Backend test suite (197 tests)
 - [x] Project docs: PRD, Architecture, Rules, Design, Task, Memory
 - [x] First stable release **v0.1.0** (2026-10-26): `main` fast-forwarded to `test`, tagged; clean Docker rebuild + 194 tests + smoke test passed
 - [x] Release **v0.1.1** (2026-10-26): empty-Keywords-cache fix + Next.js 16.4.3 security upgrade

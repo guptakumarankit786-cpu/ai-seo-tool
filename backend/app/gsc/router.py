@@ -16,9 +16,11 @@ from app.gsc import brand, google_api, keywords, sync
 from app.models import (
     GoogleConnection,
     GscDailyMetric,
+    GscIndexingExport,
     GscProperty,
     GscQueryMetric,
     GscSyncRun,
+    GscUrlInspection,
     OAuthState,
 )
 
@@ -52,6 +54,10 @@ class PropertyOut(BaseModel):
     # Range of synced performance data (null until the first sync).
     data_start: date | None
     data_end: date | None
+    # Indexing data we hold: pages checked with URL Inspection, newest Search Console export upload.
+    pages_inspected: int = 0
+    last_inspected_at: datetime | None = None
+    export_uploaded_at: datetime | None = None
 
 
 class ConnectionOut(BaseModel):
@@ -148,6 +154,16 @@ def _property_out(db: Session, prop: GscProperty) -> PropertyOut:
             GscDailyMetric.property_id == prop.id
         )
     ).one()
+    pages_inspected, last_inspected_at = db.execute(
+        select(func.count(GscUrlInspection.inspected_at), func.max(GscUrlInspection.inspected_at)).where(
+            GscUrlInspection.property_id == prop.id
+        )
+    ).one()
+    export_uploaded_at = db.scalar(
+        select(func.max(GscIndexingExport.uploaded_at)).where(
+            GscIndexingExport.property_id == prop.id, GscIndexingExport.kind == "overview"
+        )
+    )
     return PropertyOut(
         id=prop.id,
         site_url=prop.site_url,
@@ -156,6 +172,9 @@ def _property_out(db: Session, prop: GscProperty) -> PropertyOut:
         latest_run=SyncRunOut.model_validate(run, from_attributes=True) if run else None,
         data_start=data_start,
         data_end=data_end,
+        pages_inspected=pages_inspected,
+        last_inspected_at=last_inspected_at,
+        export_uploaded_at=export_uploaded_at,
     )
 
 

@@ -1,6 +1,6 @@
 # Design — AI SEO Tool
 
-_Last updated: 2026-10-24_
+_Last updated: 2026-10-27_
 
 ## 1. Principles
 - **Calm, data-first.** Numbers and advice are the hero; chrome stays quiet.
@@ -21,6 +21,7 @@ _Last updated: 2026-10-24_
 | `accent` / `accent-soft` | `#2563eb` / `#e8efff` | `#60a5fa` / `#1b2740` | primary actions, active states, links |
 | `positive` | `#15803d` | `#4ade80` | good change, indexed, safe to ignore |
 | `negative` | `#b91c1c` | `#f87171` | bad change, not indexed, worth fixing |
+| `warning` | `#b45309` | `#fbbf24` | needs attention but not broken: data behind |
 | `chart-clicks` / `chart-impressions` | blue / purple | lighter variants | chart lines |
 | `chart-brand` / `chart-non-brand` | `#2563eb` / `#d97706` | `#60a5fa` / `#fbbf24` | brand (blue) vs non-brand (amber) everywhere: dots, share bars, chart lines |
 
@@ -30,7 +31,7 @@ Use tokens through Tailwind (`bg-surface`, `text-muted`, `border-border`, `bg-ne
 
 ## 3. Layout
 - Left sidebar (`md:w-56`) with app name + nav; becomes a top bar on mobile.
-- Content max width: `max-w-4xl` (Integrations), `max-w-6xl` (client pages). Spacing `space-y-6` between sections.
+- Content max width: `max-w-6xl` (Integrations and client pages). Spacing `space-y-6` between sections.
 - Client pages: back link → title + property badge → **Performance | Keywords | Indexing** tabs → content.
 
 ## 4. Components (`frontend/src/components/ui.tsx`)
@@ -57,6 +58,9 @@ Use tokens through Tailwind (`bg-surface`, `text-muted`, `border-border`, `bg-ne
 | Filter chips | rounded pills "Label count"; active = accent border + soft fill; disabled (40% opacity, "—") when history is missing; selected chips' definitions listed underneath; "Clear". |
 | Keyword row | brand / non-brand dot, keyword, small type tags underneath; Change coloured green/red; CTR shows "typical x%" under low-CTR rows; sortable headers with ↑/↓. |
 | Low CTR pill | small red `negative/15` pill "Low CTR" next to a page in Top pages (All); CTR cell shows "typical x%" underneath. |
+| Data status | dot + label: 🟢 Up to date (`positive`), 🟠 N days behind (`warning`), ○ No data yet (outlined, `muted`), 🔴 Sync failed (`negative`), pulsing 🔵 Syncing… (`accent`). Up to date = data within 1 day of the newest day Google has (today − 3). |
+| Client row | brand (status dot, name links to Performance when data exists, property-type badge, "▸ n more properties") · Search data (status + date range / sync progress / error) · Indexing data ("n pages inspected · Export Oct 26" linking to Indexing, or "None yet") · Sync (range select + Sync + Open). Four aligned columns from `xl`, stacked with inline labels below. Expanded properties show their full address (http:// vs https://) with their own Sync, Performance and Indexing links. |
+| Status filter chips | "All 33 · Up to date 1 · Behind 6 · No data 26"; chips with 0 are hidden (except All); `role=tablist`. |
 | Terms editor | chips + Edit → comma-separated input, Save / Cancel / Reset to suggestion. |
 
 ## 5. Patterns

@@ -10,6 +10,7 @@
   --accent-soft: #e8efff;
   --positive: #15803d;
   --negative: #b91c1c;
+  --warning: #b45309;
   --chart-clicks: #2563eb;
   --chart-impressions: #9333ea;
   --chart-brand: #2563eb;
@@ -27,6 +28,7 @@
     --accent-soft: #1b2740;
     --positive: #4ade80;
     --negative: #f87171;
+    --warning: #fbbf24;
     --chart-clicks: #60a5fa;
     --chart-impressions: #c084fc;
     --chart-brand: #60a5fa;
@@ -44,6 +46,7 @@
   --color-accent-soft: var(--accent-soft);
   --color-positive: var(--positive);
   --color-negative: var(--negative);
+  --color-warning: var(--warning);
   --color-chart-brand: var(--chart-brand);
   --color-chart-non-brand: var(--chart-non-brand);
   --font-sans: var(--font-geist-sans);
