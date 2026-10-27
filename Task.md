@@ -21,14 +21,14 @@ _Last updated: 2026-10-27. Raw ideas live in [docs/ideas.md](docs/ideas.md); onl
 - [x] Export upload tested on a real Search Console export: fixed header-row bug (every real upload was rejected), site check from URLs / file name, British-spelling reasons
 - [x] Fix: Keywords tab empty after an unclean shutdown (UNLOGGED cache rows lost) — empty cache entries are rebuilt; Next.js 16.4.0 → 16.4.3 (critical security advisories)
 - [x] Integrations redesign: clients grouped by brand, search-data status (up to date / behind / no data / failed / syncing) with range, indexing data (pages inspected, export), manual Sync, status filter chips, search
-- [x] Backend test suite (197 tests)
+- [x] Pages tab part 1: page-type cards (Home / Collections / Products / Blogs / Pages / Other / Shopping listings) + filter chips (High performance, Low CTR, Striking distance, Rising, Declining, New, Lost, Zero clicks); Top pages reuses the same page rows
+- [x] Backend test suite (218 tests)
 - [x] Project docs: PRD, Architecture, Rules, Design, Task, Memory
 - [x] First stable release **v0.1.0** (2026-10-26): `main` fast-forwarded to `test`, tagged; clean Docker rebuild + 194 tests + smoke test passed
 - [x] Release **v0.1.1** (2026-10-26): empty-Keywords-cache fix + Next.js 16.4.3 security upgrade
 - [x] Release **v0.1.2** (2026-10-27): Integrations redesigned as a clients list grouped by brand
 
 ## 🔜 Next — GSC phase (approved 2026-10-15, see docs/ideas.md)
-- [ ] Pages tab part 1: page types (Collections / Products / Blogs / Pages / Home) + filter chips (ideas #13a, #13b)
 - [ ] Pages tab part 2: page detail — chart, keywords bringing the page traffic, indexing status (#13c)
 - [ ] Pages tab part 3: content decay (#13d)
 

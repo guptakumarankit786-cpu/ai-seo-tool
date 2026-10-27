@@ -68,7 +68,7 @@ export type DimensionRow = Totals & {
   expected_ctr?: number | null; // pages: site's typical page CTR at this position
   low_ctr?: boolean | null;
 };
-export type PageFilter = "all" | "low_ctr";
+export type TopPagesFilter = "all" | "low_ctr";
 
 export type QuerySegment = "all" | "brand" | "non_brand";
 
@@ -148,6 +148,81 @@ export type KeywordQuery = {
   types: KeywordType[];
   search: string;
   sort: KeywordSort;
+  order: "asc" | "desc";
+  limit: number;
+  offset: number;
+};
+
+export type PageType = "home" | "collections" | "products" | "blogs" | "pages" | "other" | "shopping";
+export type PageFilter =
+  | "low_ctr"
+  | "high_performance"
+  | "rising"
+  | "declining"
+  | "new"
+  | "lost"
+  | "zero_clicks"
+  | "striking";
+export type PageSort = "clicks" | "impressions" | "ctr" | "position" | "click_change" | "page";
+
+export type PageRow = {
+  page: string;
+  type: PageType;
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number | null;
+  prev_clicks: number | null;
+  prev_impressions: number | null;
+  prev_position: number | null;
+  click_change: number;
+  expected_ctr: number | null;
+  flags: PageFilter[];
+};
+
+export type PageGroup = {
+  type: PageType;
+  pages: number;
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number | null;
+  prev_clicks: number | null;
+  prev_impressions: number | null;
+  prev_ctr: number | null;
+  prev_position: number | null;
+};
+
+export type PageReport = {
+  start_date: string;
+  end_date: string;
+  compare: Compare;
+  compare_available: boolean;
+  new_available: boolean;
+  definitions: {
+    new_lookback_days: number;
+    mover_min_clicks: number;
+    mover_min_share: number;
+    low_ctr_max_position: number;
+    low_ctr_factor: number;
+    min_impressions: number;
+    high_performance_share: number;
+    striking_min_position: number;
+    striking_max_position: number;
+  };
+  groups: PageGroup[];
+  counts: Record<string, number>;
+  total: number;
+  items: PageRow[];
+};
+
+export type PageQuery = {
+  days: number;
+  compare: Compare;
+  types: PageType[];
+  filters: PageFilter[];
+  search: string;
+  sort: PageSort;
   order: "asc" | "desc";
   limit: number;
   offset: number;
@@ -348,7 +423,7 @@ export const api = {
     }),
   segments: (id: number, days: number, compare: Compare = "previous") =>
     request<Segments>(`/api/gsc/properties/${id}/segments?days=${days}&compare=${compare}`),
-  pages: (id: number, days: number, limit = 50, filter: PageFilter = "all") =>
+  pages: (id: number, days: number, limit = 50, filter: TopPagesFilter = "all") =>
     request<DimensionRow[]>(`/api/gsc/properties/${id}/pages?days=${days}&limit=${limit}&filter=${filter}`),
   keywords: (id: number, q: KeywordQuery) => {
     const params = new URLSearchParams({
@@ -363,6 +438,20 @@ export const api = {
     q.types.forEach((t) => params.append("types", t));
     if (q.search.trim()) params.set("search", q.search.trim());
     return request<KeywordsResponse>(`/api/gsc/properties/${id}/keywords?${params}`);
+  },
+  pageReport: (id: number, q: PageQuery) => {
+    const params = new URLSearchParams({
+      days: String(q.days),
+      compare: q.compare,
+      sort: q.sort,
+      order: q.order,
+      limit: String(q.limit),
+      offset: String(q.offset),
+    });
+    q.types.forEach((t) => params.append("type", t));
+    q.filters.forEach((f) => params.append("filter", f));
+    if (q.search.trim()) params.set("search", q.search.trim());
+    return request<PageReport>(`/api/gsc/properties/${id}/page-report?${params}`);
   },
   competitorTerms: (id: number) => request<{ terms: string[] }>(`/api/gsc/properties/${id}/competitor-terms`),
   setCompetitorTerms: (id: number, terms: string[]) =>

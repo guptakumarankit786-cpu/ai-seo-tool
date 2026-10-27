@@ -46,6 +46,8 @@ backend/app/
     opportunities.py   live query+page pull + cache, striking distance, cannibalisation
     seasonal.py        monthly keyword series cache, seasonal + spike detection
     opportunities_router.py /api/gsc/properties/{id}/opportunities/{striking-distance,cannibalisation}
+    pages.py           page types from URL, per-page flags, type totals (also backs Top pages / Low CTR)
+    pages_router.py    /api/gsc/properties/{id}/page-report
 ```
 
 ## 3. Data model
@@ -96,7 +98,7 @@ Deleting a connection cascades to everything below it. Schema changes go through
 
 **Striking distance / cannibalisation** — `GET /properties/{id}/opportunities/{striking-distance|cannibalisation}?days≤90`. The first request for a range pulls `query+page` from Search Analytics (28 d ≈ 68k rows in ~6 s, 3 m ≈ 154k rows in ~30 s on a large site), stores it, and runs `ANALYZE` (without stats the planner chose nested loops taking minutes). Per-keyword totals and the main page are computed with **window functions over a single scan** — joins between per-keyword CTEs got row estimates of ~1 and nested-looped for minutes on real data. The site's typical CTR at position 3 is computed in a separate tiny query and passed in as parameters for the same reason. URLs containing `?` are excluded.
 
-**Low CTR pages** — `GET /properties/{id}/pages?filter=all|low_ctr` aggregates pages for the window in one SQL statement, learns the site's typical page CTR per rounded position (pages with ≥ 50 impressions, ≥ 5 pages per position, no `?` URLs) and flags pages under half of it, reusing the keyword low-CTR constants. `low_ctr` sorts by impressions × (typical − actual CTR). Live query, no cache (~0.05–0.4 s up to 16 months on a large site).
+**Pages / Low CTR pages** — `pages.page_rows` aggregates pages for the window, the comparison window and the 90-day look-back in one SQL statement (like the keyword explorer, on `gsc_page_metrics`), learns the site's typical page CTR per rounded position (pages with ≥ 50 impressions, ≥ 5 pages per position, no `?` URLs), then tags page type and flags in Python. `GET /properties/{id}/page-report?days&compare&type&filter&search&sort&order&limit&offset` returns type totals, chip counts and a page of rows; `GET /properties/{id}/pages?filter=all|low_ctr` (Top pages on Performance) uses the same rows, `low_ctr` sorted by impressions × (typical − actual CTR). Pages per property are thousands, so it's a live query with no cache (~0.3 s up to 16 months on a large site).
 
 **Seasonal / spikes** — `GET /properties/{id}/keywords/{seasonal|spikes}` read the monthly cache and classify in Python (fast: ~2k keywords × ~15 months). `run_sync` rebuilds the cache after the keyword cache. Competitor terms (`/competitor-terms`) feed a `t_competitor` flag in the keyword explorer and its cache key.
 
@@ -114,9 +116,10 @@ frontend/src/
   app/integrations/                  connect Google, list properties, sync
   app/gsc/[propertyId]/              Performance dashboard
   app/gsc/[propertyId]/keywords/     Keywords explorer (filter chips, search, sort, paging)
+  app/gsc/[propertyId]/pages/        Pages explorer (page-type cards, filter chips, search, sort, paging)
   app/gsc/[propertyId]/indexing/     Indexing (inspected / export, advice)
   components/ui.tsx                  Card, Button, Banner, Badge
-  components/property-tabs.tsx       Performance | Indexing tabs
+  components/property-tabs.tsx       Performance | Keywords | Pages | Indexing tabs
   components/use-sync.ts             start + poll a sync
   components/terms-editor.tsx        chips + Edit editor (brand terms, competitor terms)
   components/range-controls.tsx      date range + comparison controls (Performance, Keywords)
@@ -139,4 +142,4 @@ Pages are thin server components wrapping client components in `<Suspense>` (req
 ```bash
 docker compose exec backend python -m pytest -q
 ```
-197 tests: OAuth, encryption, sync, reports maths, inspection discovery/quota/ordering, export parsing, advice, brand matching/segments, chunked/latest sync, comparisons, keyword types/filters/cache, striking distance / cannibalisation / live cache, seasonal / spikes / competitors, low-CTR pages, endpoints. Frontend: typecheck + lint; verified manually in the browser.
+218 tests: OAuth, encryption, sync, reports maths, inspection discovery/quota/ordering, export parsing, advice, brand matching/segments, chunked/latest sync, comparisons, keyword types/filters/cache, striking distance / cannibalisation / live cache, seasonal / spikes / competitors, low-CTR pages, endpoints. Frontend: typecheck + lint; verified manually in the browser.

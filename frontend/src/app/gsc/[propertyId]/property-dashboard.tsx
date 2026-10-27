@@ -13,7 +13,7 @@ import {
   propertyLabel,
   type Compare,
   type DimensionRow,
-  type PageFilter,
+  type TopPagesFilter,
   type Property,
   type Summary,
   type Totals,
@@ -158,13 +158,13 @@ function Kpi({
   );
 }
 
-const PAGE_FILTERS: { key: PageFilter; label: string }[] = [
+const PAGE_FILTERS: { key: TopPagesFilter; label: string }[] = [
   { key: "all", label: "All" },
   { key: "low_ctr", label: "Low CTR" },
 ];
 
 function PagesTable({ propertyId, days, version }: { propertyId: number; days: number; version: number }) {
-  const [filter, setFilter] = useState<PageFilter>("all");
+  const [filter, setFilter] = useState<TopPagesFilter>("all");
   const [rows, setRows] = useState<DimensionRow[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -186,7 +186,12 @@ function PagesTable({ propertyId, days, version }: { propertyId: number; days: n
   return (
     <Card className="overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-4 pb-3">
-        <h2 className="text-sm font-medium">Top pages</h2>
+        <div className="flex items-baseline gap-3">
+          <h2 className="text-sm font-medium">Top pages</h2>
+          <Link href={`/gsc/${propertyId}/pages`} className="text-xs text-accent hover:underline">
+            View all pages →
+          </Link>
+        </div>
         <div className="flex rounded-md border border-border p-0.5 text-xs" role="tablist">
           {PAGE_FILTERS.map((f) => (
             <button

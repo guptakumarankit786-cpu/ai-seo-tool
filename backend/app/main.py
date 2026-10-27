@@ -12,6 +12,7 @@ from app.gsc.brand_router import router as gsc_brand_router
 from app.gsc.indexing_router import router as gsc_indexing_router
 from app.gsc.keywords_router import router as gsc_keywords_router
 from app.gsc.opportunities_router import router as gsc_opportunities_router
+from app.gsc.pages_router import router as gsc_pages_router
 from app.gsc.router import router as gsc_router
 from app.models import GscInspectionRun, GscSyncRun
 
@@ -47,6 +48,7 @@ app.include_router(gsc_indexing_router)
 app.include_router(gsc_brand_router)
 app.include_router(gsc_keywords_router)
 app.include_router(gsc_opportunities_router)
+app.include_router(gsc_pages_router)
 
 
 @app.get("/api/health")

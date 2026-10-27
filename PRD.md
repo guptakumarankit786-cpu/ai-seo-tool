@@ -77,6 +77,24 @@ Keyword+page data is pulled **live from Google** (free) the first time a range i
 | Seasonal | Over all stored history (full months, keywords with 1,000+ impressions): a calendar month seen in **both years** where the keyword had ≥ 2× its median month, ≥ 100 impressions, and stood out ≥ 25% from the months either side — **every time**. Status: in season / coming up (next 2 months) / off season. With Google's 16 months only ~3 calendar months repeat; coverage grows as stored history grows. |
 | Spikes | Not seasonal, and one month holds ≥ 60% of the keyword's impressions at ≥ 5× its other months' median — spam/bot searches, news moments, short-lived rankings. Spikes in the first/last month of history are labelled as possibly a lost ranking / still growing. |
 
+### 4.3b Pages ✅ (part 1)
+A **Pages** tab per client (7d–16m, compare with previous period or last year):
+
+- **Page types** from the URL: Home, Collections, Products, Blogs, Pages, Other, Shopping listings (`?variant=` URLs). A card per type with clicks, change, CTR, position and page count; click a card to list only that type.
+- **Filter chips** (combinable, counts within the chosen type), same thresholds as keywords:
+
+| Filter | Rule |
+|---|---|
+| High performance | The pages that together bring 80% of clicks |
+| Low CTR | Top-10 position, 100+ impressions per 28 days, CTR under half of the site's typical **page** CTR at that position |
+| Striking distance | Average position 4–20 with 100+ impressions per 28 days (home page left out — it ranks for too many searches) |
+| Rising / Declining | Clicks changed by ≥ 3 and ≥ 20% vs the comparison period |
+| New | 100+ impressions per 28 days now, none in the 90 days before (real data: most "new" pages without a minimum had 1–5 impressions) |
+| Lost | Clicks in the comparison period, none now |
+| Zero clicks | 100+ impressions per 28 days, no clicks |
+
+Shopping listing URLs are never new, lost, low CTR or striking distance (Google rotates their parameters). Live query, ~0.3 s up to 16 months on a large site. Next: page detail (part 2), content decay (part 3).
+
 ### 4.4 Indexing — "Why pages aren't indexed" ✅
 Google offers **no API** for the Page Indexing report, so there are two sources:
 

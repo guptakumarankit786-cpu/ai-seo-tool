@@ -32,7 +32,7 @@ Use tokens through Tailwind (`bg-surface`, `text-muted`, `border-border`, `bg-ne
 ## 3. Layout
 - Left sidebar (`md:w-56`) with app name + nav; becomes a top bar on mobile.
 - Content max width: `max-w-6xl` (Integrations and client pages). Spacing `space-y-6` between sections.
-- Client pages: back link → title + property badge → **Performance | Keywords | Indexing** tabs → content.
+- Client pages: back link → title + property badge → **Performance | Keywords | Pages | Indexing** tabs → content.
 
 ## 4. Components (`frontend/src/components/ui.tsx`)
 | Component | Notes |
@@ -61,6 +61,8 @@ Use tokens through Tailwind (`bg-surface`, `text-muted`, `border-border`, `bg-ne
 | Data status | dot + label: 🟢 Up to date (`positive`), 🟠 N days behind (`warning`), ○ No data yet (outlined, `muted`), 🔴 Sync failed (`negative`), pulsing 🔵 Syncing… (`accent`). Up to date = data within 1 day of the newest day Google has (today − 3). |
 | Client row | brand (status dot, name links to Performance when data exists, property-type badge, "▸ n more properties") · Search data (status + date range / sync progress / error) · Indexing data ("n pages inspected · Export Oct 26" linking to Indexing, or "None yet") · Sync (range select + Sync + Open). Four aligned columns from `xl`, stacked with inline labels below. Expanded properties show their full address (http:// vs https://) with their own Sync, Performance and Indexing links. |
 | Status filter chips | "All 33 · Up to date 1 · Behind 6 · No data 26"; chips with 0 are hidden (except All); `role=tablist`. |
+| Page-type card | button card: type label + page count, big clicks, change vs comparison (green/red, %), "CTR x% · pos y"; selected = accent border + soft fill; click again to show all types. Grid 2 cols, 4 from `md`. |
+| Page row | path (link, full URL on hover), type tag (outlined) + filter tags (accent-soft); CTR shows "typical x%" under Low CTR rows. |
 | Terms editor | chips + Edit → comma-separated input, Save / Cancel / Reset to suggestion. |
 
 ## 5. Patterns

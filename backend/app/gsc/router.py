@@ -6,13 +6,13 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
-from sqlalchemy import delete, desc, func, select, text
+from sqlalchemy import delete, desc, func, select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.crypto import decrypt, encrypt
 from app.db import get_db
-from app.gsc import brand, google_api, keywords, sync
+from app.gsc import brand, google_api, keywords, pages, sync
 from app.models import (
     GoogleConnection,
     GscDailyMetric,
@@ -462,53 +462,23 @@ def top_pages(
     only those, biggest click shortfall (impressions × (typical − actual CTR)) first."""
     _get_property(db, property_id)
     start, end = _window(db, property_id, days)
-    order = (
-        "impressions * (expected_ctr - ctr) desc" if filter == "low_ctr" else "clicks desc, impressions desc"
-    )
-    rows = db.execute(
-        text(f"""
-            with p as (
-                select page, sum(clicks) as clicks, sum(impressions) as impressions,
-                       sum(position * impressions) / nullif(sum(impressions), 0) as position
-                from gsc_page_metrics
-                where property_id = :pid and date between :start and :end
-                group by page
-            ),
-            -- Shopping / free-listing URLs (with "?") are left out of the typical CTR and never flagged
-            expected as (
-                select round(position::numeric) as bucket, sum(clicks)::float / sum(impressions) as ctr
-                from p
-                where impressions >= :exp_min_impr and position <= :max_pos + 0.5 and strpos(page, '?') = 0
-                group by 1
-                having count(*) >= :exp_min_pages
-            ),
-            r as (
-                select p.*, coalesce(p.clicks::float / nullif(p.impressions, 0), 0) as ctr, e.ctr as expected_ctr
-                from p left join expected e on e.bucket = round(p.position::numeric)
-            ),
-            f as (
-                select r.*, coalesce(impressions >= :min_impr and position <= :max_pos and strpos(page, '?') = 0
-                                     and ctr < :factor * expected_ctr, false) as low_ctr
-                from r
-            )
-            select page, clicks, impressions, ctr, coalesce(position, 0), expected_ctr, low_ctr
-            from f {"where low_ctr" if filter == "low_ctr" else ""}
-            order by {order}, page
-            limit :limit
-        """),
-        {
-            "pid": property_id,
-            "start": start,
-            "end": end,
-            "limit": limit,
-            "max_pos": keywords.LOW_CTR_MAX_POSITION,
-            "factor": keywords.LOW_CTR_FACTOR,
-            "exp_min_impr": keywords.EXPECTED_CTR_MIN_IMPRESSIONS,
-            "exp_min_pages": keywords.EXPECTED_CTR_MIN_KEYWORDS,
-            "min_impr": keywords.min_impressions(days),
-        },
-    ).all()
+    rows = [r for r in pages.page_rows(db, property_id, keywords.window_for(start, end, start, end, None), days) if r["impressions"]]
+    if filter == "low_ctr":
+        rows = sorted(
+            (r for r in rows if "low_ctr" in r["flags"]),
+            key=lambda r: (-r["impressions"] * (r["expected_ctr"] - r["ctr"]), r["page"]),
+        )
+    else:
+        rows.sort(key=lambda r: (-r["clicks"], -r["impressions"], r["page"]))
     return [
-        DimensionRow(key=k, clicks=c, impressions=i, ctr=ctr, position=pos, expected_ctr=e, low_ctr=low)
-        for k, c, i, ctr, pos, e, low in rows
+        DimensionRow(
+            key=r["page"],
+            clicks=r["clicks"],
+            impressions=r["impressions"],
+            ctr=r["ctr"],
+            position=r["position"] or 0,
+            expected_ctr=r["expected_ctr"],
+            low_ctr="low_ctr" in r["flags"],
+        )
+        for r in rows[:limit]
     ]
