@@ -224,6 +224,7 @@ export function QueriesTable({ propertyId, range, version }: { propertyId: numbe
       cancelled = true;
     };
   }, [propertyId, range, segment, version]);
+  const hasChange = rowsHaveChange(rows);
 
   return (
     <Card className="overflow-hidden">
@@ -257,6 +258,7 @@ export function QueriesTable({ propertyId, range, version }: { propertyId: numbe
               <tr className="border-b border-border">
                 <th className="px-4 py-2 text-left font-normal">Query</th>
                 <th className="w-16 px-2 py-2 text-right font-normal">Clicks</th>
+                {hasChange && <ChangeHeader />}
                 <th className="w-20 px-2 py-2 text-right font-normal">Impr.</th>
                 <th className="hidden w-16 px-2 py-2 text-right font-normal sm:table-cell">CTR</th>
                 <th className="w-14 px-4 py-2 text-right font-normal">Pos.</th>
@@ -278,6 +280,7 @@ export function QueriesTable({ propertyId, range, version }: { propertyId: numbe
                     </span>
                   </td>
                   <td className="px-2 py-2 text-right">{fmt.int(r.clicks)}</td>
+                  {hasChange && <ChangeCell row={r} />}
                   <td className="px-2 py-2 text-right">{fmt.int(r.impressions)}</td>
                   <td className="hidden px-2 py-2 text-right sm:table-cell">{fmt.pct(r.ctr)}</td>
                   <td className="px-4 py-2 text-right">{fmt.pos(r.position)}</td>
@@ -288,5 +291,21 @@ export function QueriesTable({ propertyId, range, version }: { propertyId: numbe
         </div>
       )}
     </Card>
+  );
+}
+
+/** True when the rows carry comparison clicks (hidden with "No comparison" or too little history). */
+export const rowsHaveChange = (rows: DimensionRow[]) => rows.some((r) => r.prev_clicks != null);
+
+export function ChangeHeader() {
+  return <th className="w-16 px-2 py-2 text-right font-normal" title="Clicks vs the comparison period">Change</th>;
+}
+
+export function ChangeCell({ row }: { row: DimensionRow }) {
+  const change = row.prev_clicks == null ? null : row.clicks - row.prev_clicks;
+  return (
+    <td className={`px-2 py-2 text-right ${!change ? "text-muted" : change > 0 ? "text-positive" : "text-negative"}`}>
+      {change == null ? "—" : `${change > 0 ? "+" : ""}${fmt.int(change)}`}
+    </td>
   );
 }

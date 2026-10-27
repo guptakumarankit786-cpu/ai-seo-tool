@@ -90,6 +90,17 @@ class TestCompare:
         assert "rising" in kw["items"][0]["types"]
 
 
+class TestTopTablesChange:
+    @pytest.mark.parametrize("path", ["queries", "pages"])
+    def test_prev_clicks_follow_the_comparison(self, client, history, path):
+        url = f"/api/gsc/properties/{history.id}/{path}"
+        assert client.get(url, params={"days": 7}).json()[0]["prev_clicks"] == 7
+        assert client.get(url, params={"days": 7, "compare": "none"}).json()[0]["prev_clicks"] is None
+        # comparison reaching before stored history: no change rather than a misleading one
+        far = {"days": 7, "compare": "custom", "compare_start": (END - timedelta(days=200)).isoformat(), "compare_end": (END - timedelta(days=194)).isoformat()}
+        assert client.get(url, params=far).json()[0]["prev_clicks"] is None
+
+
 def test_live_views_keep_their_90_day_limit(client, history):
     resp = client.get(
         f"/api/gsc/properties/{history.id}/opportunities/striking-distance",

@@ -89,6 +89,7 @@ export type DimensionRow = Totals & {
   brand?: boolean | null;
   expected_ctr?: number | null; // pages: site's typical page CTR at this position
   low_ctr?: boolean | null;
+  prev_clicks?: number | null; // comparison window; null without a comparison
 };
 export type TopPagesFilter = "all" | "low_ctr";
 

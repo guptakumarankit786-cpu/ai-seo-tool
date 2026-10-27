@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
 import { PropertyTabs } from "@/components/property-tabs";
-import { COMPARE_LABEL, DateBar, periodText, useDateRange } from "@/components/range-controls";
+import { ClientToolbar } from "@/components/client-toolbar";
+import { COMPARE_LABEL, periodText, useDateRange } from "@/components/range-controls";
 import { Badge, Banner, Button, Card } from "@/components/ui";
 import {
   api,
@@ -154,7 +155,7 @@ export function PagesView({ params }: { params: Promise<{ propertyId: string }> 
         )}
       </header>
 
-      <DateBar />
+      <ClientToolbar propertyId={id} />
 
       <PropertyTabs propertyId={id} active="pages" />
 

@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { use, useEffect, useMemo, useState } from "react";
-import { COMPARE_LABEL, DateBar, periodText, useDateRange, withPreset } from "@/components/range-controls";
+import { ClientToolbar } from "@/components/client-toolbar";
+import { COMPARE_LABEL, periodText, useDateRange, withPreset } from "@/components/range-controls";
 import { Badge, Banner, Button, Card } from "@/components/ui";
 import { api, fmt, type PageDetail, type PageKeyword } from "@/lib/api";
 import { VerdictBadge } from "../../indexing/indexing-view";
@@ -73,7 +74,7 @@ export function PageDetailView({ params }: { params: Promise<{ propertyId: strin
         )}
       </header>
 
-      <DateBar />
+      <ClientToolbar propertyId={id} />
 
       {error && <Banner tone="error">{error}</Banner>}
       {!data && !error && (

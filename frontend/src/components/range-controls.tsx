@@ -49,6 +49,9 @@ export function setDateRange(next: DateRange) {
   listeners.forEach((l) => l());
 }
 
+/** Re-run every report with the same range, e.g. after a sync brought in new data. */
+export const refreshReports = () => setDateRange({ ...read() });
+
 function subscribe(listener: () => void) {
   listeners.add(listener);
   return () => listeners.delete(listener);

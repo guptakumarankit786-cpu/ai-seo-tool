@@ -4,7 +4,8 @@ import Link from "next/link";
 import { use, useEffect, useState } from "react";
 import { PropertyTabs } from "@/components/property-tabs";
 import { TermsEditor } from "@/components/terms-editor";
-import { COMPARE_LABEL, DateBar, periodText, rangeDays, useDateRange, withPreset } from "@/components/range-controls";
+import { ClientToolbar } from "@/components/client-toolbar";
+import { COMPARE_LABEL, periodText, rangeDays, useDateRange, withPreset } from "@/components/range-controls";
 import { Badge, Banner, Button, Card } from "@/components/ui";
 import {
   api,
@@ -159,7 +160,7 @@ export function KeywordsView({ params }: { params: Promise<{ propertyId: string 
         )}
       </header>
 
-      <DateBar />
+      <ClientToolbar propertyId={id} />
 
       <PropertyTabs propertyId={id} active="keywords" />
 

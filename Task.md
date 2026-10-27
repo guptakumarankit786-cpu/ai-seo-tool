@@ -25,9 +25,10 @@ _Last updated: 2026-10-27. Raw ideas live in [docs/ideas.md](docs/ideas.md); onl
 - [x] Pages tab part 2: page detail — KPIs vs comparison, daily chart, keywords bringing the page traffic, indexing status + export lists; opened from the Pages tab and Top pages
 - [x] Fix: two requests opening the same range no longer both pull from Google / build the keyword set (advisory lock per property)
 - [x] Pages tab part 3: content decay — last 3 full months vs the 3 before (≥ 30% drop, 30+ clicks, falling 2 of 3 months) with likely cause (sudden drop / ranking / fewer searches / lower CTR) and advice
+- [x] Client pages: Period → Data → Explore toolbar (sync on every tab, hint when the period needs older data); Change column on Top queries / Top pages
 - [x] One date bar for every report: presets or custom dates; compare previous / last year / custom dates / none; shared by all tabs and clients, remembered in the browser
 - [x] Content decay: "Sync full 16 months" button inside the not-enough-history message
-- [x] Backend test suite (239 tests)
+- [x] Backend test suite (241 tests)
 - [x] Project docs: PRD, Architecture, Rules, Design, Task, Memory
 - [x] First stable release **v0.1.0** (2026-10-26): `main` fast-forwarded to `test`, tagged; clean Docker rebuild + 194 tests + smoke test passed
 - [x] Release **v0.1.1** (2026-10-26): empty-Keywords-cache fix + Next.js 16.4.3 security upgrade

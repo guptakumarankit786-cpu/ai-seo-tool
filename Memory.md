@@ -5,6 +5,8 @@ Decisions and learned facts, newest first. Add an entry whenever something is de
 ## 2026-10-27
 
 **Decisions**
+- Client pages follow the user's flow **Period → Sync → Explore**: one toolbar (1 Period, 2 Data from Google) above the tabs, with Sync on every tab and a hint naming the sync that fills a period reaching before stored data. A finished sync re-sets the shared range so every report refetches.
+- Change figures show **everywhere** (user chose): Top queries / Top pages got a Change column; hidden when there's no fully stored comparison.
 - **One date range for everything** (user asked): a single date bar above the tabs drives every report; the choice is shared by **all clients** (user chose this over per-client) and remembered in the browser. Custom dates and comparison modes previous / last year / **custom** / **none** (user picked all four). "No comparison" hides change figures and disables Rising / Declining / Lost. Views with fixed rules (Seasonal, Spikes, Content decay: all history; live views: ≤ 3 months) say so instead of silently ignoring the bar.
 - **Pages tab** (user chose page types + filters, page detail, content decay; "pages vs indexing" later). Part 1 built: page types from the URL path (Shopify layout), filter chips reusing the keyword thresholds, live query (no cache).
 - Page "new" needs 100+ impressions per 28 days (unlike keywords); Shopping `?variant=` URLs are never new / lost / low CTR / striking; the home page is never striking distance.

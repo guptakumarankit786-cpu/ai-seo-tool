@@ -3,10 +3,9 @@
 import Link from "next/link";
 import { use, useCallback, useEffect, useState } from "react";
 import { PropertyTabs } from "@/components/property-tabs";
-import { COMPARE_LABEL, DateBar, periodText, useDateRange } from "@/components/range-controls";
-import { SyncControls, SyncStatus } from "@/components/sync-controls";
+import { ClientToolbar } from "@/components/client-toolbar";
+import { COMPARE_LABEL, periodText, useDateRange } from "@/components/range-controls";
 import { Badge, Banner, Card } from "@/components/ui";
-import { useSync } from "@/components/use-sync";
 import {
   api,
   fmt,
@@ -18,7 +17,7 @@ import {
   type Summary,
   type Totals,
 } from "@/lib/api";
-import { BrandSection, QueriesTable } from "./brand-section";
+import { BrandSection, ChangeCell, ChangeHeader, QueriesTable, rowsHaveChange } from "./brand-section";
 import { TrafficChart } from "./traffic-chart";
 
 
@@ -56,8 +55,8 @@ export function PropertyDashboard({ params }: { params: Promise<{ propertyId: st
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div className="min-w-0">
+      <header className="min-w-0">
+        <div>
           <Link href="/integrations" className="text-xs text-muted hover:text-foreground">
             ← Integrations
           </Link>
@@ -67,10 +66,9 @@ export function PropertyDashboard({ params }: { params: Promise<{ propertyId: st
           </div>
           <p className="mt-1 text-sm text-muted">{periodText(summary)}</p>
         </div>
-        <SyncBar property={property} onDone={load} />
       </header>
 
-      <DateBar />
+      <ClientToolbar propertyId={id} />
 
       <PropertyTabs propertyId={id} active="performance" />
 
@@ -98,19 +96,6 @@ export function PropertyDashboard({ params }: { params: Promise<{ propertyId: st
         <QueriesTable propertyId={id} range={range} version={version} />
         <PagesTable propertyId={id} range={range} version={version} />
       </div>
-    </div>
-  );
-}
-
-function SyncBar({ property, onDone }: { property: Property; onDone: () => void }) {
-  const { run, running, error, start } = useSync(property, onDone);
-  return (
-    <div className="flex flex-col items-start gap-1 sm:items-end">
-      <SyncControls property={property} running={running} start={start} />
-      <p className="text-xs text-muted">
-        <SyncStatus property={property} running={running} run={run} />
-      </p>
-      {error && <p className="text-xs text-negative">{error}</p>}
     </div>
   );
 }
@@ -178,6 +163,7 @@ function PagesTable({ propertyId, range, version }: { propertyId: number; range:
       cancelled = true;
     };
   }, [propertyId, range, filter, version]);
+  const hasChange = rowsHaveChange(rows);
 
   return (
     <Card className="overflow-hidden">
@@ -219,6 +205,7 @@ function PagesTable({ propertyId, range, version }: { propertyId: number; range:
               <tr className="border-b border-border">
                 <th className="px-4 py-2 text-left font-normal">Page</th>
                 <th className="w-16 px-2 py-2 text-right font-normal">Clicks</th>
+                {hasChange && <ChangeHeader />}
                 <th className="w-20 px-2 py-2 text-right font-normal">Impr.</th>
                 <th className="hidden w-20 px-2 py-2 text-right font-normal sm:table-cell">CTR</th>
                 <th className="w-14 px-4 py-2 text-right font-normal">Pos.</th>
@@ -252,6 +239,7 @@ function PagesTable({ propertyId, range, version }: { propertyId: number; range:
                     </span>
                   </td>
                   <td className="px-2 py-2 text-right">{fmt.int(r.clicks)}</td>
+                  {hasChange && <ChangeCell row={r} />}
                   <td className="px-2 py-2 text-right">{fmt.int(r.impressions)}</td>
                   <td className="hidden px-2 py-2 text-right sm:table-cell">
                     {fmt.pct(r.ctr)}

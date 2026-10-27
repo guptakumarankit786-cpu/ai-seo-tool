@@ -130,6 +130,7 @@ class DimensionRow(Totals):
     brand: bool | None = None  # set for queries
     expected_ctr: float | None = None  # pages: site's typical page CTR at this position
     low_ctr: bool | None = None  # pages: CTR under half of that typical CTR
+    prev_clicks: int | None = None  # clicks in the comparison window; null without a (fully stored) comparison
 
 
 # ---------- helpers ----------
@@ -494,8 +495,24 @@ def top_queries(
     is_brand = brand.brand_condition(GscQueryMetric.query_norm, terms)
     extra = {"all": [], "brand": [is_brand], "non_brand": [~is_brand]}[segment]
     rows = _top(db, GscQueryMetric, GscQueryMetric.query, property_id, period.start, period.end, limit, *extra)
+    comparable = period.compare_start is not None and has_history(db, property_id, period.compare_start)
+    prev: dict[str, int] = {}
+    if rows and comparable:
+        prev = dict(
+            db.execute(
+                select(GscQueryMetric.query, func.sum(GscQueryMetric.clicks))
+                .where(
+                    GscQueryMetric.property_id == property_id,
+                    GscQueryMetric.date.between(period.compare_start, period.compare_end),
+                    GscQueryMetric.query.in_([r.key for r in rows]),
+                )
+                .group_by(GscQueryMetric.query)
+            ).all()
+        )
     for row in rows:
         row.brand = brand.is_brand(row.key, terms)
+        if comparable:
+            row.prev_clicks = prev.get(row.key, 0)
     return rows
 
 
@@ -511,7 +528,8 @@ def top_pages(
     position (same rule as low-CTR keywords; pages have no brand split). `filter=low_ctr` lists
     only those, biggest click shortfall (impressions × (typical − actual CTR)) first."""
     _get_property(db, property_id)
-    win = keywords.window_for(period.start, period.end, None, None, None)
+    first_stored = db.scalar(select(func.min(GscDailyMetric.date)).where(GscDailyMetric.property_id == property_id))
+    win = keywords.window_for(period.start, period.end, period.compare_start, period.compare_end, first_stored)
     rows = [r for r in pages.page_rows(db, property_id, win, period.days) if r["impressions"]]
     if filter == "low_ctr":
         rows = sorted(
@@ -529,6 +547,7 @@ def top_pages(
             position=r["position"] or 0,
             expected_ctr=r["expected_ctr"],
             low_ctr="low_ctr" in r["flags"],
+            prev_clicks=r["prev_clicks"],
         )
         for r in rows[:limit]
     ]
