@@ -141,7 +141,7 @@ function Clients({ properties, onChange }: { properties: Property[]; onChange: (
   }
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="@container overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-5 pb-4">
         <div>
           <h2 className="text-sm font-medium">Clients</h2>
@@ -177,16 +177,16 @@ function Clients({ properties, onChange }: { properties: Property[]; onChange: (
         ))}
       </div>
 
-      <div className="hidden grid-cols-[minmax(14rem,1fr)_12rem_11rem_17rem] gap-4 border-y border-border px-5 py-2 text-xs text-muted xl:grid">
+      <div className="hidden grid-cols-[minmax(11rem,1fr)_11rem_10rem_17rem] gap-4 border-y border-border px-5 py-2 text-xs text-muted @4xl:grid">
         <span>Client</span>
         <span>Search data</span>
         <span>Indexing data</span>
         <span className="text-right">Sync</span>
       </div>
       {shown.length === 0 ? (
-        <p className="border-t border-border px-5 py-6 text-sm text-muted xl:border-t-0">No clients match.</p>
+        <p className="border-t border-border px-5 py-6 text-sm text-muted @4xl:border-t-0">No clients match.</p>
       ) : (
-        <ul className="divide-y divide-border border-t border-border xl:border-t-0">
+        <ul className="divide-y divide-border border-t border-border @4xl:border-t-0">
           {shown.map((b) => (
             <BrandRow key={b.key} brand={b} onChange={onChange} />
           ))}
@@ -206,7 +206,7 @@ function BrandRow({ brand, onChange }: { brand: Brand; onChange: () => void }) {
 
   return (
     <li>
-      <div className="grid gap-3 px-5 py-4 xl:grid-cols-[minmax(14rem,1fr)_12rem_11rem_17rem] xl:items-center xl:gap-4">
+      <div className="grid gap-3 px-5 py-4 @4xl:grid-cols-[minmax(11rem,1fr)_11rem_10rem_17rem] @4xl:items-center @4xl:gap-4">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${STATUS_STYLE[s.key].dot}`} aria-hidden />
@@ -235,19 +235,19 @@ function BrandRow({ brand, onChange }: { brand: Brand; onChange: () => void }) {
         <SearchData property={main} status={s} run={sync.run} />
         <IndexingData property={main} />
 
-        <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+        <div className="flex flex-wrap items-center gap-2 @4xl:justify-end">
           <SyncControls property={main} running={sync.running} start={sync.start} />
           {main.data_end ? (
             <Link href={`/gsc/${main.id}`} className="px-1 text-sm text-accent hover:underline">
               Open
             </Link>
           ) : (
-            <span className="invisible hidden px-1 text-sm xl:inline" aria-hidden>
+            <span className="invisible hidden px-1 text-sm @4xl:inline" aria-hidden>
               Open
             </span>
           )}
         </div>
-        {sync.error && <p className="text-xs text-negative xl:col-span-4">{sync.error}</p>}
+        {sync.error && <p className="text-xs text-negative @4xl:col-span-4">{sync.error}</p>}
       </div>
 
       {open && (
@@ -273,8 +273,8 @@ function SearchData({ property, status, run }: { property: Property; status: Ret
     detail = `${fmt.date(property.data_start)} – ${fmt.date(property.data_end)}`;
   }
   return (
-    <div className="min-w-0 pl-[18px] text-sm xl:pl-0">
-      <span className="text-xs text-muted xl:hidden">Search data: </span>
+    <div className="min-w-0 pl-[18px] text-sm @4xl:pl-0">
+      <span className="text-xs text-muted @4xl:hidden">Search data: </span>
       <span className={`font-medium ${STATUS_STYLE[status.key].text}`}>{status.label}</span>
       <p className="truncate text-xs text-muted" title={detail}>
         {detail}
@@ -289,8 +289,8 @@ function IndexingData({ property }: { property: Property }) {
     property.export_uploaded_at && `Export ${fmt.date(property.export_uploaded_at.slice(0, 10))}`,
   ].filter(Boolean);
   return (
-    <div className="min-w-0 pl-[18px] text-sm xl:pl-0">
-      <span className="text-xs text-muted xl:hidden">Indexing data: </span>
+    <div className="min-w-0 pl-[18px] text-sm @4xl:pl-0">
+      <span className="text-xs text-muted @4xl:hidden">Indexing data: </span>
       {parts.length ? (
         <Link href={`/gsc/${property.id}/indexing`} className="hover:text-accent hover:underline">
           {parts.join(" · ")}
