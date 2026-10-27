@@ -20,7 +20,7 @@ export const COMPARE_LABEL: Record<Compare, string> = {
   none: "",
 };
 
-// ---------- one date range for every client and tab, remembered in this browser ----------
+// ---------- one date range for every client and tab; each new visit starts at 28 days vs previous period ----------
 
 const STORAGE_KEY = "seo-tool:date-range";
 const DEFAULT_RANGE: DateRange = { days: 28, start: null, end: null, compare: "previous", compareStart: null, compareEnd: null };
@@ -31,7 +31,7 @@ const listeners = new Set<() => void>();
 function read(): DateRange {
   if (current) return current;
   try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null");
+    const saved = JSON.parse(sessionStorage.getItem(STORAGE_KEY) ?? "null");
     current = saved ? { ...DEFAULT_RANGE, ...saved } : DEFAULT_RANGE;
   } catch {
     current = DEFAULT_RANGE; // private window / blocked storage: just don't remember
@@ -42,9 +42,9 @@ function read(): DateRange {
 export function setDateRange(next: DateRange) {
   current = next;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   } catch {
-    // not remembered across reloads, but still shared by every screen in this tab
+    // not kept across reloads, but still shared by every screen in this tab
   }
   listeners.forEach((l) => l());
 }
@@ -69,8 +69,10 @@ export function rangeDays(r: DateRange): number {
   return r.days;
 }
 
-/** "Sep 15 – Oct 12 · compared with Aug 18 – Sep 14" (or "· no comparison") from a report's dates. */
-export function periodText(d: { start_date: string; end_date: string; compare_start: string | null; compare_end: string | null }) {
+type PeriodDates = { start_date: string; end_date: string; compare_start: string | null; compare_end: string | null };
+
+/** "Sep 15 – Oct 12 · compared with Aug 18 – Sep 14", "· no comparison", or a note when the comparison isn't stored. */
+export function periodText(d: PeriodDates & ({ previous_totals: unknown } | { compare_available: boolean })) {
   const fmtDate = (iso: string) => {
     const date = new Date(iso + "T00:00:00");
     return date.toLocaleDateString("en-US", {
@@ -80,9 +82,10 @@ export function periodText(d: { start_date: string; end_date: string; compare_st
     });
   };
   const range = `${fmtDate(d.start_date)} – ${fmtDate(d.end_date)}`;
-  return d.compare_start && d.compare_end
-    ? `${range} · compared with ${fmtDate(d.compare_start)} – ${fmtDate(d.compare_end)}`
-    : `${range} · no comparison`;
+  if (!d.compare_start || !d.compare_end) return `${range} · no comparison`;
+  const compared = `${fmtDate(d.compare_start)} – ${fmtDate(d.compare_end)}`;
+  const stored = "compare_available" in d ? d.compare_available : d.previous_totals != null;
+  return stored ? `${range} · compared with ${compared}` : `${range} · no comparison: ${compared} isn't stored yet`;
 }
 
 /** A preset range, keeping the comparison choice. */

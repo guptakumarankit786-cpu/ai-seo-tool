@@ -5,6 +5,7 @@ Decisions and learned facts, newest first. Add an entry whenever something is de
 ## 2026-10-27
 
 **Decisions**
+- The shared date range resets to **28 days vs previous period** on every new visit (user asked); it's kept in `sessionStorage`, so it still carries across tabs and clients during a visit.
 - Client pages follow the user's flow **Period → Sync → Explore**: one toolbar (1 Period, 2 Data from Google) above the tabs, with Sync on every tab and a hint naming the sync that fills a period reaching before stored data. A finished sync re-sets the shared range so every report refetches.
 - Change figures show **everywhere** (user chose): Top queries / Top pages got a Change column; hidden when there's no fully stored comparison.
 - **One date range for everything** (user asked): a single date bar above the tabs drives every report; the choice is shared by **all clients** (user chose this over per-client) and remembered in the browser. Custom dates and comparison modes previous / last year / **custom** / **none** (user picked all four). "No comparison" hides change figures and disables Rising / Declining / Lost. Views with fixed rules (Seasonal, Spikes, Content decay: all history; live views: ≤ 3 months) say so instead of silently ignoring the bar.
