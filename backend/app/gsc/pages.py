@@ -6,6 +6,7 @@ typical CTR is learned from pages, though — page CTR runs far lower than keywo
 Pages per property are thousands, not millions, so this is a live query with no cache.
 """
 
+from datetime import date
 from typing import Literal, get_args
 from urllib.parse import urlsplit
 
@@ -236,3 +237,96 @@ def explore(
     if sort == "page" and descending:
         rows.reverse()
     return counts, len(matches), rows[offset : offset + limit]
+
+
+# ---------- content decay ----------
+
+DecayCause = Literal["ranking", "demand", "ctr", "sudden", "mixed"]
+DECAY_WINDOW_MONTHS = 3  # the last 3 full months vs the 3 before them
+DECAY_MIN_MONTHS = 2 * DECAY_WINDOW_MONTHS
+DECAY_MIN_CLICKS = 30  # clicks in the earlier 3 months — below this, a drop is noise
+DECAY_MIN_DROP = 0.3  # at least 30% fewer clicks
+DECAY_MIN_FALLING_MONTHS = 2  # clicks fell in at least 2 of the last 3 month-on-month steps
+SUDDEN_DROP = 0.7  # one month-on-month fall of 70%+ is a cliff (redirect, removal, stock), not decay
+RANKING_SLIP = 1.0  # average position at least 1 place worse
+CAUSE_DROP = 0.3  # impressions or CTR down 30%+
+
+
+def _window_totals(months: list[tuple[int, int, float]]) -> tuple[int, int, float | None]:
+    clicks = sum(m[0] for m in months)
+    impressions = sum(m[1] for m in months)
+    wpos = sum(m[2] for m in months)
+    return clicks, impressions, (wpos / impressions if impressions else None)
+
+
+def decay_cause(clicks: list[int], before: tuple, recent: tuple) -> str:
+    """Why clicks fell: a cliff, rankings slipping, fewer searches, or fewer clicks at the same visibility."""
+    steps = clicks[-(DECAY_WINDOW_MONTHS + 1) :]
+    if any(a > 0 and (a - b) / a >= SUDDEN_DROP for a, b in zip(steps, steps[1:])):
+        return "sudden"
+    (b_clicks, b_impr, b_pos), (r_clicks, r_impr, r_pos) = before, recent
+    if b_pos is not None and r_pos is not None and r_pos - b_pos >= RANKING_SLIP:
+        return "ranking"
+    if b_impr and r_impr <= (1 - CAUSE_DROP) * b_impr:
+        return "demand"
+    if b_impr and r_impr and (r_clicks / r_impr) <= (1 - CAUSE_DROP) * (b_clicks / b_impr):
+        return "ctr"
+    return "mixed"
+
+
+def decaying_pages(db: Session, property_id: int, start: date, end: date) -> tuple[list[date], list[dict]]:
+    """Pages whose clicks fell steadily over the last full months of [start, end), newest month last."""
+    db.execute(text("set local work_mem = '64MB'"))  # the page × month grouping spills to disk at 4 MB
+    rows = db.execute(
+        text(
+            """
+            select page, date_trunc('month', date)::date as month, sum(clicks), sum(impressions),
+                   sum(position * impressions)
+            from gsc_page_metrics
+            where property_id = :pid and date >= :start and date < :end and strpos(page, '?') = 0
+            group by 1, 2
+            """
+        ),
+        {"pid": property_id, "start": start, "end": end},
+    ).all()
+    months = sorted({r[1] for r in rows})
+    if len(months) < DECAY_MIN_MONTHS:
+        return months, []
+    series: dict[str, dict[date, tuple[int, int, float]]] = {}
+    for page, month, clicks, impressions, wpos in rows:
+        series.setdefault(page, {})[month] = (clicks, impressions, wpos or 0.0)
+
+    out = []
+    n = DECAY_WINDOW_MONTHS
+    for page, by_month in series.items():
+        monthly = [by_month.get(m, (0, 0, 0.0)) for m in months]
+        clicks = [m[0] for m in monthly]
+        before, recent = _window_totals(monthly[-2 * n : -n]), _window_totals(monthly[-n:])
+        steps = clicks[-(n + 1) :]
+        falling = sum(b < a for a, b in zip(steps, steps[1:]))
+        if (
+            before[0] < DECAY_MIN_CLICKS
+            or recent[0] > (1 - DECAY_MIN_DROP) * before[0]
+            or falling < DECAY_MIN_FALLING_MONTHS
+            or steps[-1] >= steps[0]
+        ):
+            continue
+        out.append(
+            {
+                "page": page,
+                "type": page_type(page),
+                "clicks": clicks,
+                "impressions": [m[1] for m in monthly],
+                "before_clicks": before[0],
+                "recent_clicks": recent[0],
+                "before_impressions": before[1],
+                "recent_impressions": recent[1],
+                "before_position": before[2],
+                "recent_position": recent[2],
+                "drop": 1 - recent[0] / before[0],
+                "lost_clicks": before[0] - recent[0],
+                "cause": decay_cause(clicks, before, recent),
+            }
+        )
+    out.sort(key=lambda r: (-r["lost_clicks"], r["page"]))
+    return months, out

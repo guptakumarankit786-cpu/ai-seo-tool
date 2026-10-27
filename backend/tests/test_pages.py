@@ -229,3 +229,72 @@ class TestPageDetail:
     def test_unknown_page_returns_404(self, client, seeded, live):
         resp = client.get(f"/api/gsc/properties/{seeded.id}/page-detail", params={"url": SITE + "/nope"})
         assert resp.status_code == 404
+
+
+class TestContentDecay:
+    """Last 3 full months vs the 3 before: steady falls flagged with their likely cause."""
+
+    @staticmethod
+    def months_back(n):
+        """First days of the last n full calendar months, oldest first."""
+        first = END.replace(day=1)
+        out = []
+        for _ in range(n):
+            first = (first - timedelta(days=1)).replace(day=1)
+            out.append(first)
+        return out[::-1]
+
+    def seed(self, db, prop, n_months, pages_):
+        months = self.months_back(n_months)
+        for day in (months[0], END):  # stored history spans the full months
+            db.add(GscDailyMetric(property_id=prop.id, date=day, clicks=1, impressions=10, ctr=0.1, position=5))
+        for path, clicks, impressions, positions in pages_:
+            for m, c, i, pos in zip(months, clicks, impressions, positions):
+                add_page(db, prop, path, c, i, pos, day=m.replace(day=15))
+        db.commit()
+
+    def get(self, client, prop, **params):
+        resp = client.get(f"/api/gsc/properties/{prop.id}/page-decay", params=params)
+        assert resp.status_code == 200, resp.text
+        return resp.json()
+
+    FLAT_IMPR = [1000] * 7
+    FLAT_POS = [5.0] * 7
+    PAGES = [
+        # path, monthly clicks (oldest first), impressions, positions
+        ("/blogs/ranking", [100, 100, 100, 90, 60, 40, 30], FLAT_IMPR, [5, 5, 5, 5, 6, 7, 7.5]),
+        ("/blogs/demand", [100, 100, 100, 90, 60, 40, 30], [1000, 1000, 1000, 900, 600, 400, 300], FLAT_POS),
+        ("/blogs/ctr", [100, 100, 100, 90, 60, 40, 30], FLAT_IMPR, FLAT_POS),
+        ("/products/cliff", [50, 50, 50, 60, 40, 2, 2], FLAT_IMPR, FLAT_POS),
+        ("/blogs/recovering", [100, 100, 100, 100, 30, 60, 70], FLAT_IMPR, FLAT_POS),  # one fall, then back up
+        ("/pages/small", [8, 8, 8, 8, 4, 2, 1], FLAT_IMPR, FLAT_POS),  # under 30 clicks before
+        ("/products/p1?variant=1", [100, 100, 100, 90, 60, 40, 30], FLAT_IMPR, FLAT_POS),  # Shopping URL
+    ]
+
+    def test_steady_falls_with_their_cause(self, client, db, prop):
+        self.seed(db, prop, 7, self.PAGES)
+
+        body = self.get(client, prop)
+
+        assert body["available"] and len(body["months"]) == 7
+        causes = {r["page"].removeprefix(SITE): r["cause"] for r in body["items"]}
+        assert causes == {"/blogs/ranking": "ranking", "/blogs/demand": "demand", "/blogs/ctr": "ctr", "/products/cliff": "sudden"}
+        ranking = next(r for r in body["items"] if r["page"].endswith("/blogs/ranking"))
+        assert (ranking["before_clicks"], ranking["recent_clicks"], ranking["lost_clicks"]) == (290, 130, 160)
+        assert ranking["drop"] == pytest.approx(160 / 290)
+        assert ranking["clicks"] == [100, 100, 100, 90, 60, 40, 30]
+        assert body["type_counts"] == {"blogs": 3, "products": 1}
+
+    def test_type_filter_keeps_type_counts(self, client, db, prop):
+        self.seed(db, prop, 7, self.PAGES)
+        body = self.get(client, prop, type="products")
+        assert [r["page"].removeprefix(SITE) for r in body["items"]] == ["/products/cliff"]
+        assert body["total"] == 1 and body["type_counts"]["blogs"] == 3
+
+    def test_needs_six_full_months(self, client, db, prop):
+        self.seed(db, prop, 5, [("/blogs/ranking", [100, 90, 60, 40, 30], [1000] * 5, [5] * 5)])
+        body = self.get(client, prop)
+        assert (body["available"], body["total"]) == (False, 0)
+
+    def test_no_data_at_all(self, client, prop):
+        assert self.get(client, prop)["available"] is False

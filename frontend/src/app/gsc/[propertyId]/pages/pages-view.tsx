@@ -19,8 +19,15 @@ import {
   type PageType,
   type Property,
 } from "@/lib/api";
+import { DecayPanel } from "./decay-panel";
 
 const PAGE_SIZE = 100;
+
+type View = "all" | "decay";
+const VIEWS: { key: View; label: string }[] = [
+  { key: "all", label: "All pages" },
+  { key: "decay", label: "Content decay" },
+];
 
 export const TYPE_LABEL: Record<PageType, string> = {
   home: "Home",
@@ -77,6 +84,7 @@ export function PagesView({ params }: { params: Promise<{ propertyId: string }> 
     limit: PAGE_SIZE,
     offset: 0,
   });
+  const [view, setView] = useState<View>("all");
   const [searchInput, setSearchInput] = useState("");
   const [data, setData] = useState<PageReport | null>(null);
   const [rows, setRows] = useState<PageRow[]>([]);
@@ -144,138 +152,158 @@ export function PagesView({ params }: { params: Promise<{ propertyId: string }> 
 
       <PropertyTabs propertyId={id} active="pages" />
 
-      <RangeControls
-        days={q.days}
-        onDays={(days) => update({ days })}
-        compare={q.compare}
-        onCompare={(compare) => update({ compare })}
-      />
+      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Page view">
+        {VIEWS.map((v) => (
+          <button
+            key={v.key}
+            role="tab"
+            aria-selected={view === v.key}
+            onClick={() => setView(v.key)}
+            className={`rounded-md border px-3 py-1.5 text-sm ${
+              view === v.key ? "border-accent bg-accent-soft font-medium text-accent" : "border-border hover:bg-accent-soft"
+            }`}
+          >
+            {v.label}
+          </button>
+        ))}
+      </div>
 
-      {data && data.groups.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4" role="group" aria-label="Page types">
-          {data.groups.map((g) => (
-            <TypeCard
-              key={g.type}
-              group={g}
-              compare={q.compare}
-              selected={selectedType === g.type}
-              onClick={() => update({ types: selectedType === g.type ? [] : [g.type] })}
-            />
-          ))}
-        </div>
-      )}
+      {view === "decay" && <DecayPanel propertyId={id} />}
 
-      {data && (
-        <Card className="space-y-3 p-4">
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Page filters">
-            {FILTER_ORDER.map((f) => {
-              const unavailable = (NEEDS_COMPARE.includes(f) && !data.compare_available) || (f === "new" && !data.new_available);
-              const active = q.filters.includes(f);
-              return (
-                <button
-                  key={f}
-                  onClick={() => toggleFilter(f)}
-                  disabled={unavailable && !active}
-                  aria-pressed={active}
-                  title={unavailable ? "Not enough history for this date range" : describe(f, data.definitions, q.compare)}
-                  className={`rounded-full border px-3 py-1 text-sm transition disabled:cursor-not-allowed disabled:opacity-40 ${
-                    active ? "border-accent bg-accent-soft text-accent" : "border-border hover:bg-accent-soft"
-                  }`}
-                >
-                  {FILTER_LABEL[f]} <span className="tabular-nums text-muted">{unavailable ? "—" : fmt.int(data.counts[f] ?? 0)}</span>
-                </button>
-              );
-            })}
-            {q.filters.length > 0 && (
-              <button onClick={() => update({ filters: [] })} className="px-2 text-sm text-muted hover:text-foreground">
-                Clear
-              </button>
-            )}
+      <div className={view === "all" ? "space-y-6" : "hidden"}>
+        <RangeControls
+          days={q.days}
+          onDays={(days) => update({ days })}
+          compare={q.compare}
+          onCompare={(compare) => update({ compare })}
+        />
+
+        {data && data.groups.length > 0 && (
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4" role="group" aria-label="Page types">
+            {data.groups.map((g) => (
+              <TypeCard
+                key={g.type}
+                group={g}
+                compare={q.compare}
+                selected={selectedType === g.type}
+                onClick={() => update({ types: selectedType === g.type ? [] : [g.type] })}
+              />
+            ))}
           </div>
-          {(q.filters.length > 0 || selectedType) && (
-            <ul className="space-y-0.5 text-xs text-muted">
-              {selectedType && (
-                <li>
-                  <b className="font-medium text-foreground">{TYPE_LABEL[selectedType]}</b> pages only
-                  {TYPE_HINT[selectedType] && ` — ${TYPE_HINT[selectedType]}`}.{" "}
-                  <button onClick={() => update({ types: [] })} className="text-accent hover:underline">
-                    Show all types
+        )}
+
+        {data && (
+          <Card className="space-y-3 p-4">
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Page filters">
+              {FILTER_ORDER.map((f) => {
+                const unavailable = (NEEDS_COMPARE.includes(f) && !data.compare_available) || (f === "new" && !data.new_available);
+                const active = q.filters.includes(f);
+                return (
+                  <button
+                    key={f}
+                    onClick={() => toggleFilter(f)}
+                    disabled={unavailable && !active}
+                    aria-pressed={active}
+                    title={unavailable ? "Not enough history for this date range" : describe(f, data.definitions, q.compare)}
+                    className={`rounded-full border px-3 py-1 text-sm transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                      active ? "border-accent bg-accent-soft text-accent" : "border-border hover:bg-accent-soft"
+                    }`}
+                  >
+                    {FILTER_LABEL[f]} <span className="tabular-nums text-muted">{unavailable ? "—" : fmt.int(data.counts[f] ?? 0)}</span>
                   </button>
-                </li>
+                );
+              })}
+              {q.filters.length > 0 && (
+                <button onClick={() => update({ filters: [] })} className="px-2 text-sm text-muted hover:text-foreground">
+                  Clear
+                </button>
               )}
-              {q.filters.map((f) => (
-                <li key={f}>
-                  <b className="font-medium text-foreground">{FILTER_LABEL[f]}:</b> {describe(f, data.definitions, q.compare)}
-                </li>
-              ))}
-              {q.filters.length > 1 && <li>Pages must match all selected filters.</li>}
-            </ul>
+            </div>
+            {(q.filters.length > 0 || selectedType) && (
+              <ul className="space-y-0.5 text-xs text-muted">
+                {selectedType && (
+                  <li>
+                    <b className="font-medium text-foreground">{TYPE_LABEL[selectedType]}</b> pages only
+                    {TYPE_HINT[selectedType] && ` — ${TYPE_HINT[selectedType]}`}.{" "}
+                    <button onClick={() => update({ types: [] })} className="text-accent hover:underline">
+                      Show all types
+                    </button>
+                  </li>
+                )}
+                {q.filters.map((f) => (
+                  <li key={f}>
+                    <b className="font-medium text-foreground">{FILTER_LABEL[f]}:</b> {describe(f, data.definitions, q.compare)}
+                  </li>
+                ))}
+                {q.filters.length > 1 && <li>Pages must match all selected filters.</li>}
+              </ul>
+            )}
+          </Card>
+        )}
+
+        {error && <Banner tone="error">{error}</Banner>}
+
+        <Card className="overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-4 pb-3">
+            <h2 className="text-sm font-medium">
+              {data ? `${fmt.int(data.total)} pages` : "Pages"}
+              {loading && <span className="ml-2 font-normal text-muted">Updating…</span>}
+            </h2>
+            <input
+              type="search"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Search page URLs"
+              aria-label="Search page URLs"
+              className="w-full rounded-md border border-border bg-surface px-3 py-1.5 text-sm sm:w-64"
+            />
+          </div>
+
+          {loading && !data ? (
+            <p className="px-4 pb-6 text-sm text-muted">Analysing pages…</p>
+          ) : rows.length === 0 ? (
+            <p className="px-4 pb-6 text-sm text-muted">
+              {data?.groups.length ? "No pages match these filters." : "No page data in this range yet. Run a sync from Integrations."}
+            </p>
+          ) : (
+            <div className="max-h-[640px] overflow-auto">
+              <table className="w-full table-fixed text-sm">
+                <thead className="sticky top-0 z-10 bg-surface text-xs text-muted">
+                  <tr className="border-b border-border">
+                    <SortHeader label="Page" sort="page" q={q} onSort={sortBy} className="px-4 text-left" />
+                    <SortHeader label="Clicks" sort="clicks" q={q} onSort={sortBy} className="w-20 px-2 text-right" />
+                    <SortHeader label="Change" sort="click_change" q={q} onSort={sortBy} className="hidden w-20 px-2 text-right md:table-cell" />
+                    <SortHeader label="Impr." sort="impressions" q={q} onSort={sortBy} className="w-24 px-2 text-right" />
+                    <SortHeader label="CTR" sort="ctr" q={q} onSort={sortBy} className="hidden w-20 px-2 text-right sm:table-cell" />
+                    <SortHeader label="Pos." sort="position" q={q} onSort={sortBy} className="w-16 px-4 text-right" />
+                  </tr>
+                </thead>
+                <tbody className="tabular-nums">
+                  {rows.map((r) => (
+                    <PageTableRow
+                      key={r.page}
+                      row={r}
+                      compareAvailable={!!data?.compare_available}
+                      detailHref={`/gsc/${id}/pages/detail?${new URLSearchParams({ url: r.page, days: String(q.days), compare: q.compare })}`}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {data && rows.length < data.total && (
+            <div className="flex items-center justify-between px-4 py-2 text-xs text-muted">
+              <span>
+                Showing {fmt.int(rows.length)} of {fmt.int(data.total)}
+              </span>
+              <Button variant="secondary" disabled={loading} onClick={() => setQ((prev) => ({ ...prev, offset: rows.length }))}>
+                {loading ? "Loading…" : "Show more"}
+              </Button>
+            </div>
           )}
         </Card>
-      )}
-
-      {error && <Banner tone="error">{error}</Banner>}
-
-      <Card className="overflow-hidden">
-        <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-4 pb-3">
-          <h2 className="text-sm font-medium">
-            {data ? `${fmt.int(data.total)} pages` : "Pages"}
-            {loading && <span className="ml-2 font-normal text-muted">Updating…</span>}
-          </h2>
-          <input
-            type="search"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Search page URLs"
-            aria-label="Search page URLs"
-            className="w-full rounded-md border border-border bg-surface px-3 py-1.5 text-sm sm:w-64"
-          />
-        </div>
-
-        {loading && !data ? (
-          <p className="px-4 pb-6 text-sm text-muted">Analysing pages…</p>
-        ) : rows.length === 0 ? (
-          <p className="px-4 pb-6 text-sm text-muted">
-            {data?.groups.length ? "No pages match these filters." : "No page data in this range yet. Run a sync from Integrations."}
-          </p>
-        ) : (
-          <div className="max-h-[640px] overflow-auto">
-            <table className="w-full table-fixed text-sm">
-              <thead className="sticky top-0 z-10 bg-surface text-xs text-muted">
-                <tr className="border-b border-border">
-                  <SortHeader label="Page" sort="page" q={q} onSort={sortBy} className="px-4 text-left" />
-                  <SortHeader label="Clicks" sort="clicks" q={q} onSort={sortBy} className="w-20 px-2 text-right" />
-                  <SortHeader label="Change" sort="click_change" q={q} onSort={sortBy} className="hidden w-20 px-2 text-right md:table-cell" />
-                  <SortHeader label="Impr." sort="impressions" q={q} onSort={sortBy} className="w-24 px-2 text-right" />
-                  <SortHeader label="CTR" sort="ctr" q={q} onSort={sortBy} className="hidden w-20 px-2 text-right sm:table-cell" />
-                  <SortHeader label="Pos." sort="position" q={q} onSort={sortBy} className="w-16 px-4 text-right" />
-                </tr>
-              </thead>
-              <tbody className="tabular-nums">
-                {rows.map((r) => (
-                  <PageTableRow
-                    key={r.page}
-                    row={r}
-                    compareAvailable={!!data?.compare_available}
-                    detailHref={`/gsc/${id}/pages/detail?${new URLSearchParams({ url: r.page, days: String(q.days), compare: q.compare })}`}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {data && rows.length < data.total && (
-          <div className="flex items-center justify-between px-4 py-2 text-xs text-muted">
-            <span>
-              Showing {fmt.int(rows.length)} of {fmt.int(data.total)}
-            </span>
-            <Button variant="secondary" disabled={loading} onClick={() => setQ((prev) => ({ ...prev, offset: rows.length }))}>
-              {loading ? "Loading…" : "Show more"}
-            </Button>
-          </div>
-        )}
-      </Card>
+      </div>
     </div>
   );
 }

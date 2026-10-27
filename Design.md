@@ -50,7 +50,7 @@ Use tokens through Tailwind (`bg-surface`, `text-muted`, `border-border`, `bg-ne
 | Segment card | coloured dot + label, share-of-clicks bar, 4 metrics with change vs previous period. |
 | Sync controls | select (Latest days / 3 / 6 / 16 months) + Sync button; status line underneath ("Data Jun 14, 2025 – Oct 12 · synced …", or "Syncing — month 4 of 17…"). |
 | Compare select | "Compare: previous period / same period last year"; KPI deltas say "vs previous period" / "vs last year"; chart shows the comparison as dashed, faded lines. |
-| View switch | "All keywords / Striking distance / Cannibalisation / Seasonal / Spikes" outlined buttons above the range controls (Seasonal/Spikes replace the range controls with "Uses all stored history"). |
+| View switch | Pages: "All pages / Content decay" (decay hides the range controls). Keywords: "All keywords / Striking distance / Cannibalisation / Seasonal / Spikes" outlined buttons above the range controls (Seasonal/Spikes replace the range controls with "Uses all stored history"). |
 | Striking row | keyword (brand dot) with its ranking page underneath (accent link, "+n other pages"); Potential in green "+n". |
 | Cannibal item | keyword + "impr · clicks · n pages"; per page: share bar, %, impressions, clicks, position; green "Likely sitelinks — usually fine" pill. |
 | Month bars | tiny bar per month (h-8); peak / spike months in accent, others muted; tooltip with month + impressions. |
@@ -63,6 +63,7 @@ Use tokens through Tailwind (`bg-surface`, `text-muted`, `border-border`, `bg-ne
 | Status filter chips | "All 33 · Up to date 1 · Behind 6 · No data 26"; chips with 0 are hidden (except All); `role=tablist`. |
 | Page-type card | button card: type label + page count, big clicks, change vs comparison (green/red, %), "CTR x% · pos y"; selected = accent border + soft fill; click again to show all types. Grid 2 cols, 4 from `md`. |
 | Page detail | back link → path as title, type + filter tags, "Open live page ↗" → range controls → 4 KPI cards (CTR card shows "typical x%") → chart → keywords table (brand dot, "+n other pages shown for this search", sortable) beside an Indexing card (Indexed / Not indexed pill, verdict badge, what to do, last crawled, in sitemap, canonical warning in `warning`, export lists). |
+| Decay item | path (→ page detail, ↗ live) with type tag + cause pill (Ranking dropped / Sudden drop `negative`, Fewer searches `accent`, Lower CTR `warning`, Mixed outlined) and a one-line explanation with numbers and what to do · clicks month bars (last 3 months in accent) · "1,163 → 281 −76%" with "clicks per 3 months · −294/month". Month ranges in prose use "Jul 2026", not "Jul 26". |
 | Page row | path (links to page detail; ↗ opens the live page), type tag (outlined) + filter tags (accent-soft); CTR shows "typical x%" under Low CTR rows. |
 | Terms editor | chips + Edit → comma-separated input, Save / Cancel / Reset to suggestion. |
 

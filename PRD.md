@@ -77,7 +77,7 @@ Keyword+page data is pulled **live from Google** (free) the first time a range i
 | Seasonal | Over all stored history (full months, keywords with 1,000+ impressions): a calendar month seen in **both years** where the keyword had ≥ 2× its median month, ≥ 100 impressions, and stood out ≥ 25% from the months either side — **every time**. Status: in season / coming up (next 2 months) / off season. With Google's 16 months only ~3 calendar months repeat; coverage grows as stored history grows. |
 | Spikes | Not seasonal, and one month holds ≥ 60% of the keyword's impressions at ≥ 5× its other months' median — spam/bot searches, news moments, short-lived rankings. Spikes in the first/last month of history are labelled as possibly a lost ranking / still growing. |
 
-### 4.3b Pages ✅ (parts 1–2)
+### 4.3b Pages ✅
 A **Pages** tab per client (7d–16m, compare with previous period or last year):
 
 - **Page types** from the URL: Home, Collections, Products, Blogs, Pages, Other, Shopping listings (`?variant=` URLs). A card per type with clicks, change, CTR, position and page count; click a card to list only that type.
@@ -95,7 +95,19 @@ A **Pages** tab per client (7d–16m, compare with previous period or last year)
 
 Shopping listing URLs are never new, lost, low CTR or striking distance (Google rotates their parameters). Live query, ~0.3 s up to 16 months on a large site.
 
-**Page detail** (click a page in the Pages tab or in Top pages): clicks, impressions, CTR (with the site's typical CTR at that position) and position vs the comparison period; daily chart with the comparison dashed; the **keywords bringing the page traffic** (position, CTR, brand / non-brand, "+n other pages shown for this search") and how many clicks came from searches Google hides; **indexing status** (inspection result with verdict and what to do, last crawl, in sitemap, Google-chosen canonical if different) and any uploaded Search Console reason lists that include the page. Keywords come from the live keyword+page pull (up to 3 months, cached until the next sync / 24 h). Next: content decay (part 3).
+**Page detail** (click a page in the Pages tab or in Top pages): clicks, impressions, CTR (with the site's typical CTR at that position) and position vs the comparison period; daily chart with the comparison dashed; the **keywords bringing the page traffic** (position, CTR, brand / non-brand, "+n other pages shown for this search") and how many clicks came from searches Google hides; **indexing status** (inspection result with verdict and what to do, last crawl, in sitemap, Google-chosen canonical if different) and any uploaded Search Console reason lists that include the page. Keywords come from the live keyword+page pull (up to 3 months, cached until the next sync / 24 h).
+
+**Content decay** (Pages tab → "Content decay"; uses all stored history, needs 6 full months): pages whose clicks in the last 3 full months are **≥ 30% below** the 3 months before, from **30+ clicks**, falling in **at least 2 of the last 3 months** (one fall that recovers isn't decay). Shopping `?` URLs excluded. Biggest click loss first, with a month-by-month clicks bar, a type filter, and the **likely cause** with what to do:
+
+| Cause | Rule (checked in this order) | Advice |
+|---|---|---|
+| Sudden drop | A single month fell 70%+ | A cliff, not decay — check redirects, removal, de-indexing, stock |
+| Ranking dropped | Average position ≥ 1 place worse | Refresh / strengthen the content |
+| Fewer searches | Impressions down 30%+, position held | Demand fading or seasonal; widen the page |
+| Lower CTR | Impressions and position held, CTR down 30%+ | Rewrite title / description; check search features |
+| Mixed | Small slips in each | — |
+
+On real data (large Shopify store, 15 months): 50 decaying pages, 30 of them blogs; most often ranking dropped. Seasonal pages can appear too — true seasonality needs more than a year of stored history.
 
 ### 4.4 Indexing — "Why pages aren't indexed" ✅
 Google offers **no API** for the Page Indexing report, so there are two sources:

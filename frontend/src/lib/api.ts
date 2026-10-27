@@ -247,6 +247,42 @@ export type PageDetail = Omit<Summary, "site_url"> & {
   export_issues: { issue: string; uploaded_at: string; last_crawled: string | null; advice: Advice }[];
 };
 
+export type DecayCause = "ranking" | "demand" | "ctr" | "sudden" | "mixed";
+
+export type DecayRow = {
+  page: string;
+  type: PageType;
+  clicks: number[];
+  impressions: number[];
+  before_clicks: number;
+  recent_clicks: number;
+  before_impressions: number;
+  recent_impressions: number;
+  before_position: number | null;
+  recent_position: number | null;
+  drop: number;
+  lost_clicks: number;
+  cause: DecayCause;
+};
+
+export type DecayResponse = {
+  available: boolean;
+  months: string[];
+  definitions: {
+    window_months: number;
+    min_months: number;
+    min_clicks: number;
+    min_drop: number;
+    min_falling_months: number;
+    sudden_drop: number;
+    ranking_slip: number;
+    cause_drop: number;
+  };
+  type_counts: Record<string, number>;
+  total: number;
+  items: DecayRow[];
+};
+
 export type PageQuery = {
   days: number;
   compare: Compare;
@@ -488,6 +524,11 @@ export const api = {
     request<PageDetail>(
       `/api/gsc/properties/${id}/page-detail?${new URLSearchParams({ url, days: String(days), compare })}`,
     ),
+  pageDecay: (id: number, types: PageType[], limit: number, offset: number) => {
+    const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+    types.forEach((t) => params.append("type", t));
+    return request<DecayResponse>(`/api/gsc/properties/${id}/page-decay?${params}`);
+  },
   competitorTerms: (id: number) => request<{ terms: string[] }>(`/api/gsc/properties/${id}/competitor-terms`),
   setCompetitorTerms: (id: number, terms: string[]) =>
     request<{ terms: string[] }>(`/api/gsc/properties/${id}/competitor-terms`, {

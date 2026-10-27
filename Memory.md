@@ -8,6 +8,7 @@ Decisions and learned facts, newest first. Add an entry whenever something is de
 - **Pages tab** (user chose page types + filters, page detail, content decay; "pages vs indexing" later). Part 1 built: page types from the URL path (Shopify layout), filter chips reusing the keyword thresholds, live query (no cache).
 - Page "new" needs 100+ impressions per 28 days (unlike keywords); Shopping `?variant=` URLs are never new / lost / low CTR / striking; the home page is never striking distance.
 - A lost page also counts as declining — same as keywords.
+- Content decay rule chosen on real data: a 30% drop alone flagged 66 pages, requiring all 3 months to fall only 18 (too strict — one flat month hides decay); "falling in 2 of the last 3 months" gave 50 real cases. Cause order: sudden (one month −70%) → ranking (≥ 1 place worse) → fewer searches (impressions −30%) → lower CTR (−30%) → mixed.
 - Page detail keywords reuse the live keyword+page pull (≤ 90 days); beyond that the page shows "pick 28 days / 3 months" instead of pulling more from Google.
 - Ideas added: #12 track page changes (before/after), #13f service-brand support (today's clients are D2C / e-commerce).
 - Integrations page = **clients list grouped by brand** (user chose this over one row per property) and it shows **indexing data** too. A brand's row uses the property with the newest data (Domain on ties); the rest are under "n more properties".
@@ -15,6 +16,8 @@ Decisions and learned facts, newest first. Add an entry whenever something is de
 
 **Facts learned**
 - Real data (large Shopify client, 28 d): Home CTR ~11%, Products ~1%, Collections ~0.7%, **Blogs ~0.5%** — blogs get many impressions but the fewest clicks. Without a minimum, ~80% of "new" pages had 1–5 impressions; ~1/4 of all page URLs are Shopping `?variant=` listings.
+- Real decay causes (large store, 15 months, 50 pages): ranking 24, sudden 10, fewer searches 10, lower CTR 4, mixed 2. Product "sudden drops" (e.g. 411 → 16 clicks in a month) are usually stock / URL changes, not content decay.
+- Clients synced for only 3 months can't use content decay (needs 6 full months).
 - **Concurrent first opens pulled from Google twice** (React dev mode fires each request twice; two users could too) and raced on the cache cleanup. Fixed with a Postgres advisory transaction lock per property around the query+page pull and the keyword-set build.
 - Real example of what page detail surfaces: a blog post at position ~3 with 31k impressions and 0.04% CTR (site typical 1.1%), its top keyword at position 2.5 — a title/description problem, not a ranking one.
 - A page's average position is diluted when it ranks for many searches (home page ~position 18) — don't treat it as striking distance.

@@ -24,14 +24,15 @@ _Last updated: 2026-10-27. Raw ideas live in [docs/ideas.md](docs/ideas.md); onl
 - [x] Pages tab part 1: page-type cards (Home / Collections / Products / Blogs / Pages / Other / Shopping listings) + filter chips (High performance, Low CTR, Striking distance, Rising, Declining, New, Lost, Zero clicks); Top pages reuses the same page rows
 - [x] Pages tab part 2: page detail — KPIs vs comparison, daily chart, keywords bringing the page traffic, indexing status + export lists; opened from the Pages tab and Top pages
 - [x] Fix: two requests opening the same range no longer both pull from Google / build the keyword set (advisory lock per property)
-- [x] Backend test suite (224 tests)
+- [x] Pages tab part 3: content decay — last 3 full months vs the 3 before (≥ 30% drop, 30+ clicks, falling 2 of 3 months) with likely cause (sudden drop / ranking / fewer searches / lower CTR) and advice
+- [x] Backend test suite (228 tests)
 - [x] Project docs: PRD, Architecture, Rules, Design, Task, Memory
 - [x] First stable release **v0.1.0** (2026-10-26): `main` fast-forwarded to `test`, tagged; clean Docker rebuild + 194 tests + smoke test passed
 - [x] Release **v0.1.1** (2026-10-26): empty-Keywords-cache fix + Next.js 16.4.3 security upgrade
 - [x] Release **v0.1.2** (2026-10-27): Integrations redesigned as a clients list grouped by brand
 
 ## 🔜 Next — GSC phase (approved 2026-10-15, see docs/ideas.md)
-- [ ] Pages tab part 3: content decay (#13d)
+- [ ] Pick the next feature from the backlog / ideas
 
 ## 📋 Backlog (approved ideas, not started)
 - [ ] Automatic scheduled syncs from Search Console (ideas #3)

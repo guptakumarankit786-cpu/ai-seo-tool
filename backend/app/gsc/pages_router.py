@@ -7,7 +7,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.gsc import brand, google_api, indexing, keywords, opportunities, pages, sync
+from app.gsc import brand, google_api, indexing, keywords, opportunities, pages, seasonal, sync
 from app.gsc.indexing_router import AdviceOut, _advice
 from app.gsc.router import Compare, DailyPoint, Totals, _window, comparison_window
 from app.models import (
@@ -342,4 +342,85 @@ def page_detail(
         keywords=page_keywords,
         inspection=_inspection(db, prop.id, url),
         export_issues=_export_issues(db, prop.id, url),
+    )
+
+
+# ---------- content decay ----------
+
+
+class DecayRow(BaseModel):
+    page: str
+    type: pages.PageType
+    clicks: list[int]  # per month, aligned with `months`
+    impressions: list[int]
+    before_clicks: int  # the 3 months before the last 3
+    recent_clicks: int  # the last 3 full months
+    before_impressions: int
+    recent_impressions: int
+    before_position: float | None
+    recent_position: float | None
+    drop: float  # share of clicks lost
+    lost_clicks: int
+    cause: pages.DecayCause
+
+
+class DecayDefinitions(BaseModel):
+    window_months: int
+    min_months: int
+    min_clicks: int
+    min_drop: float
+    min_falling_months: int
+    sudden_drop: float
+    ranking_slip: float
+    cause_drop: float
+
+
+class DecayOut(BaseModel):
+    available: bool  # needs 6 full months of stored history
+    months: list[date]
+    definitions: DecayDefinitions
+    type_counts: dict[str, int]
+    total: int
+    items: list[DecayRow]
+
+
+@router.get("/page-decay", response_model=DecayOut)
+def page_decay(
+    property_id: int,
+    db: DbDep,
+    page_types: Annotated[list[pages.PageType] | None, Query(alias="type", description="Page types; any of")] = None,
+    limit: Annotated[int, Query(ge=1, le=500)] = 100,
+    offset: Annotated[int, Query(ge=0)] = 0,
+):
+    """Pages whose clicks fell steadily over the last 3 full months, with the likely cause."""
+    prop = db.get(GscProperty, property_id)
+    if not prop:
+        raise HTTPException(404, "Property not found")
+    first, last = db.execute(
+        select(func.min(GscDailyMetric.date), func.max(GscDailyMetric.date)).where(GscDailyMetric.property_id == prop.id)
+    ).one()
+    span = seasonal.full_month_range(first, last) if first else None
+    months, rows = pages.decaying_pages(db, prop.id, *span) if span else ([], [])
+
+    type_counts: dict[str, int] = {}
+    for r in rows:
+        type_counts[r["type"]] = type_counts.get(r["type"], 0) + 1
+    if page_types:
+        rows = [r for r in rows if r["type"] in page_types]
+    return DecayOut(
+        available=len(months) >= pages.DECAY_MIN_MONTHS,
+        months=months,
+        definitions=DecayDefinitions(
+            window_months=pages.DECAY_WINDOW_MONTHS,
+            min_months=pages.DECAY_MIN_MONTHS,
+            min_clicks=pages.DECAY_MIN_CLICKS,
+            min_drop=pages.DECAY_MIN_DROP,
+            min_falling_months=pages.DECAY_MIN_FALLING_MONTHS,
+            sudden_drop=pages.SUDDEN_DROP,
+            ranking_slip=pages.RANKING_SLIP,
+            cause_drop=pages.CAUSE_DROP,
+        ),
+        type_counts=type_counts,
+        total=len(rows),
+        items=[DecayRow(**r) for r in rows[offset : offset + limit]],
     )

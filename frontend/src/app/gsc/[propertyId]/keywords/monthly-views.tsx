@@ -30,14 +30,24 @@ const STATUS_STYLE: Record<SeasonStatus, string> = {
 };
 
 /** Tiny monthly bar chart; highlighted bars are the peak / spike months. */
-function MonthBars({ months, values, highlight }: { months: string[]; values: number[]; highlight: (month: string) => boolean }) {
+export function MonthBars({
+  months,
+  values,
+  highlight,
+  unit = "impressions",
+}: {
+  months: string[];
+  values: number[];
+  highlight: (month: string) => boolean;
+  unit?: string;
+}) {
   const max = Math.max(...values, 1);
   return (
-    <div className="flex h-8 items-end gap-px" role="img" aria-label="Monthly impressions">
+    <div className="flex h-8 items-end gap-px" role="img" aria-label={`Monthly ${unit}`}>
       {values.map((v, i) => (
         <div
           key={months[i]}
-          title={`${fmt.month(months[i])}: ${fmt.int(v)} impressions`}
+          title={`${fmt.month(months[i])}: ${fmt.int(v)} ${unit}`}
           className={`w-1.5 rounded-sm ${highlight(months[i]) ? "bg-accent" : "bg-muted/40"}`}
           style={{ height: `${Math.max(4, (v / max) * 100)}%` }}
         />
