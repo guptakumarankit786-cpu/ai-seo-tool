@@ -44,7 +44,7 @@ Agreed 2026-10-27: a **Pages** tab like the Keywords tab, built in parts. All sy
 |---|------|------|--------|
 | 13a | **Page types** (part 1) | Cards for Collections / Products / Blogs / Pages / Home (+ Other, Shopping listings) with clicks, impressions, CTR, position and change; detected from the URL path. | ✅ Built 2026-10-27 |
 | 13b | **Page filter chips** (part 1) | Combinable with page type: Low CTR, High performance, Rising, Declining, New, Lost, Zero clicks, Striking distance (position 4–20). | ✅ Built 2026-10-27 |
-| 13c | **Page detail** (part 2) | Open a page: daily chart, the keywords bringing it traffic (position, CTR), its indexing status. | 🎯 Approved |
+| 13c | **Page detail** (part 2) | Open a page: daily chart, the keywords bringing it traffic (position, CTR), its indexing status. | ✅ Built 2026-10-27 |
 | 13d | **Content decay** (part 3) | Pages (mostly blogs) whose clicks fell steadily for 3+ months — refresh candidates. | 🎯 Approved |
 | 13e | Pages vs indexing | Sitemap pages with no impressions; pages with impressions that Google says aren't indexed (clients with inspections only). | 💡 Later |
 | 13f | **Service-brand support** | Today's clients are mostly D2C / e-commerce. Add features for **service brands** too: their own page types (service pages, location pages, case studies, contact / lead pages) and the views that matter for them (e.g. local / "near me" keywords, lead pages). Page types should become configurable per client rather than Shopify-only. _Added 2026-10-27._ | 💡 Later |

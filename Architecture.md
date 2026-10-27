@@ -47,7 +47,7 @@ backend/app/
     seasonal.py        monthly keyword series cache, seasonal + spike detection
     opportunities_router.py /api/gsc/properties/{id}/opportunities/{striking-distance,cannibalisation}
     pages.py           page types from URL, per-page flags, type totals (also backs Top pages / Low CTR)
-    pages_router.py    /api/gsc/properties/{id}/page-report
+    pages_router.py    /api/gsc/properties/{id}/page-report, /page-detail
 ```
 
 ## 3. Data model
@@ -98,7 +98,9 @@ Deleting a connection cascades to everything below it. Schema changes go through
 
 **Striking distance / cannibalisation** — `GET /properties/{id}/opportunities/{striking-distance|cannibalisation}?days≤90`. The first request for a range pulls `query+page` from Search Analytics (28 d ≈ 68k rows in ~6 s, 3 m ≈ 154k rows in ~30 s on a large site), stores it, and runs `ANALYZE` (without stats the planner chose nested loops taking minutes). Per-keyword totals and the main page are computed with **window functions over a single scan** — joins between per-keyword CTEs got row estimates of ~1 and nested-looped for minutes on real data. The site's typical CTR at position 3 is computed in a separate tiny query and passed in as parameters for the same reason. URLs containing `?` are excluded.
 
-**Pages / Low CTR pages** — `pages.page_rows` aggregates pages for the window, the comparison window and the 90-day look-back in one SQL statement (like the keyword explorer, on `gsc_page_metrics`), learns the site's typical page CTR per rounded position (pages with ≥ 50 impressions, ≥ 5 pages per position, no `?` URLs), then tags page type and flags in Python. `GET /properties/{id}/page-report?days&compare&type&filter&search&sort&order&limit&offset` returns type totals, chip counts and a page of rows; `GET /properties/{id}/pages?filter=all|low_ctr` (Top pages on Performance) uses the same rows, `low_ctr` sorted by impressions × (typical − actual CTR). Pages per property are thousands, so it's a live query with no cache (~0.3 s up to 16 months on a large site).
+**Pages / Low CTR pages** — `pages.page_rows` aggregates pages for the window, the comparison window and the 90-day look-back in one SQL statement (like the keyword explorer, on `gsc_page_metrics`), learns the site's typical page CTR per rounded position (pages with ≥ 50 impressions, ≥ 5 pages per position, no `?` URLs), then tags page type and flags in Python. `GET /properties/{id}/page-report?days&compare&type&filter&search&sort&order&limit&offset` returns type totals, chip counts and a page of rows; `GET /properties/{id}/pages?filter=all|low_ctr` (Top pages on Performance) uses the same rows, `low_ctr` sorted by impressions × (typical − actual CTR). Pages per property are thousands, so it's a live query with no cache (~0.3 s up to 16 months on a large site). `GET /properties/{id}/page-detail?url&days&compare` returns that page's totals and daily series (same shape as `/summary`, so the chart and KPI cards are reused), its keywords from the query+page cache (≤ 90 days) with how many other pages showed for each search, its URL inspection and any uploaded reason lists containing it.
+
+**Cache builds are serialised per property** — `cached_entry` (query+page pull) and the keyword set build take a Postgres advisory transaction lock first, so two requests opening the same range at once (React dev mode fires each twice) don't both pull from Google; the second waits and reuses the first one's result.
 
 **Seasonal / spikes** — `GET /properties/{id}/keywords/{seasonal|spikes}` read the monthly cache and classify in Python (fast: ~2k keywords × ~15 months). `run_sync` rebuilds the cache after the keyword cache. Competitor terms (`/competitor-terms`) feed a `t_competitor` flag in the keyword explorer and its cache key.
 
@@ -117,6 +119,7 @@ frontend/src/
   app/gsc/[propertyId]/              Performance dashboard
   app/gsc/[propertyId]/keywords/     Keywords explorer (filter chips, search, sort, paging)
   app/gsc/[propertyId]/pages/        Pages explorer (page-type cards, filter chips, search, sort, paging)
+  app/gsc/[propertyId]/pages/detail/ Page detail (?url=…): KPIs, chart, keywords, indexing
   app/gsc/[propertyId]/indexing/     Indexing (inspected / export, advice)
   components/ui.tsx                  Card, Button, Banner, Badge
   components/property-tabs.tsx       Performance | Keywords | Pages | Indexing tabs
@@ -142,4 +145,4 @@ Pages are thin server components wrapping client components in `<Suspense>` (req
 ```bash
 docker compose exec backend python -m pytest -q
 ```
-218 tests: OAuth, encryption, sync, reports maths, inspection discovery/quota/ordering, export parsing, advice, brand matching/segments, chunked/latest sync, comparisons, keyword types/filters/cache, striking distance / cannibalisation / live cache, seasonal / spikes / competitors, low-CTR pages, endpoints. Frontend: typecheck + lint; verified manually in the browser.
+224 tests: OAuth, encryption, sync, reports maths, inspection discovery/quota/ordering, export parsing, advice, brand matching/segments, chunked/latest sync, comparisons, keyword types/filters/cache, striking distance / cannibalisation / live cache, seasonal / spikes / competitors, low-CTR pages, endpoints. Frontend: typecheck + lint; verified manually in the browser.

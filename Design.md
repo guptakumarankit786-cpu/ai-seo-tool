@@ -62,7 +62,8 @@ Use tokens through Tailwind (`bg-surface`, `text-muted`, `border-border`, `bg-ne
 | Client row | brand (status dot, name links to Performance when data exists, property-type badge, "▸ n more properties") · Search data (status + date range / sync progress / error) · Indexing data ("n pages inspected · Export Oct 26" linking to Indexing, or "None yet") · Sync (range select + Sync + Open). Four aligned columns from `xl`, stacked with inline labels below. Expanded properties show their full address (http:// vs https://) with their own Sync, Performance and Indexing links. |
 | Status filter chips | "All 33 · Up to date 1 · Behind 6 · No data 26"; chips with 0 are hidden (except All); `role=tablist`. |
 | Page-type card | button card: type label + page count, big clicks, change vs comparison (green/red, %), "CTR x% · pos y"; selected = accent border + soft fill; click again to show all types. Grid 2 cols, 4 from `md`. |
-| Page row | path (link, full URL on hover), type tag (outlined) + filter tags (accent-soft); CTR shows "typical x%" under Low CTR rows. |
+| Page detail | back link → path as title, type + filter tags, "Open live page ↗" → range controls → 4 KPI cards (CTR card shows "typical x%") → chart → keywords table (brand dot, "+n other pages shown for this search", sortable) beside an Indexing card (Indexed / Not indexed pill, verdict badge, what to do, last crawled, in sitemap, canonical warning in `warning`, export lists). |
+| Page row | path (links to page detail; ↗ opens the live page), type tag (outlined) + filter tags (accent-soft); CTR shows "typical x%" under Low CTR rows. |
 | Terms editor | chips + Edit → comma-separated input, Save / Cancel / Reset to suggestion. |
 
 ## 5. Patterns

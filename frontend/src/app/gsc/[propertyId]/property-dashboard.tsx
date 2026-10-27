@@ -119,7 +119,7 @@ function SyncBar({ property, onDone }: { property: Property; onDone: () => void 
   );
 }
 
-function Kpi({
+export function Kpi({
   label,
   metric,
   summary,
@@ -127,7 +127,7 @@ function Kpi({
 }: {
   label: string;
   metric: keyof Totals;
-  summary: Summary;
+  summary: Pick<Summary, "totals" | "previous_totals" | "compare">;
   lowerIsBetter?: boolean;
 }) {
   const value = summary.totals[metric];
@@ -233,8 +233,20 @@ function PagesTable({ propertyId, days, version }: { propertyId: number; days: n
                 <tr key={r.key} className="border-b border-border last:border-0">
                   <td className="max-w-0 px-4 py-2" title={r.key}>
                     <span className="flex items-center gap-2">
-                      <a href={r.key} target="_blank" rel="noreferrer" className="truncate hover:underline">
+                      <Link
+                        href={`/gsc/${propertyId}/pages/detail?${new URLSearchParams({ url: r.key, days: String(days) })}`}
+                        className="truncate hover:text-accent hover:underline"
+                      >
                         {r.key.replace(/^https?:\/\/[^/]+/, "") || "/"}
+                      </Link>
+                      <a
+                        href={r.key}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="shrink-0 text-xs text-muted hover:text-foreground"
+                        aria-label="Open the live page in a new tab"
+                      >
+                        ↗
                       </a>
                       {filter === "all" && r.low_ctr && (
                         <span className="shrink-0 rounded-full bg-negative/15 px-1.5 text-[11px] text-negative">

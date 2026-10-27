@@ -123,7 +123,7 @@ const VERDICT_STYLE: Record<Verdict, string> = {
   ignore: "bg-positive/15 text-positive",
 };
 
-function VerdictBadge({ verdict }: { verdict: Verdict }) {
+export function VerdictBadge({ verdict }: { verdict: Verdict }) {
   return (
     <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${VERDICT_STYLE[verdict]}`}>
       {VERDICT_LABEL[verdict]}

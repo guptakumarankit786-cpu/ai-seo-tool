@@ -1,9 +1,12 @@
 """Striking distance and cannibalisation from live query+page data (Google mocked)."""
+import threading
+import time
 from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import func, select, text
 
+from app.db import SessionLocal
 from app.gsc import google_api, opportunities
 from app.models import GscDailyMetric, GscProperty, GscQueryPageCacheEntry
 from tests.conftest import days_ago
@@ -146,6 +149,27 @@ class TestLiveCache:
         db.commit()
         get(client, prop, "striking-distance")
         assert len(live) == 2 and self.entries(db) == 1
+
+    def test_two_requests_at_once_pull_from_google_once(self, db, prop, live, monkeypatch):
+        fake = google_api.search_analytics
+
+        def slow(*args):
+            time.sleep(0.5)  # the second request arrives while the first is still pulling
+            return fake(*args)
+
+        monkeypatch.setattr(google_api, "search_analytics", slow)
+
+        def open_range():
+            with SessionLocal() as session:
+                opportunities.cached_entry(session, session.get(GscProperty, prop.id), days_ago(30), days_ago(3))
+
+        threads = [threading.Thread(target=open_range) for _ in range(2)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        assert len(live) == 1 and self.entries(db) == 1
 
     def test_refetches_when_postgres_emptied_the_rows(self, client, db, prop, live):
         first = get(client, prop, "striking-distance")

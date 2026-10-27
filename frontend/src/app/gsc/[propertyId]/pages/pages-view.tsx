@@ -22,7 +22,7 @@ import {
 
 const PAGE_SIZE = 100;
 
-const TYPE_LABEL: Record<PageType, string> = {
+export const TYPE_LABEL: Record<PageType, string> = {
   home: "Home",
   collections: "Collections",
   products: "Products",
@@ -36,7 +36,7 @@ const TYPE_HINT: Partial<Record<PageType, string>> = {
   other: "Pages outside /products, /collections, /blogs and /pages (cart, search, policies…).",
 };
 
-const FILTER_LABEL: Record<PageFilter, string> = {
+export const FILTER_LABEL: Record<PageFilter, string> = {
   high_performance: "High performance",
   low_ctr: "Low CTR",
   striking: "Striking distance",
@@ -46,7 +46,7 @@ const FILTER_LABEL: Record<PageFilter, string> = {
   lost: "Lost",
   zero_clicks: "Zero clicks",
 };
-const FILTER_ORDER = Object.keys(FILTER_LABEL) as PageFilter[];
+export const FILTER_ORDER = Object.keys(FILTER_LABEL) as PageFilter[];
 const NEEDS_COMPARE: PageFilter[] = ["lost", "rising", "declining"];
 
 function describe(f: PageFilter, d: PageReport["definitions"], compare: Compare): string {
@@ -253,7 +253,12 @@ export function PagesView({ params }: { params: Promise<{ propertyId: string }> 
               </thead>
               <tbody className="tabular-nums">
                 {rows.map((r) => (
-                  <PageTableRow key={r.page} row={r} compareAvailable={!!data?.compare_available} />
+                  <PageTableRow
+                    key={r.page}
+                    row={r}
+                    compareAvailable={!!data?.compare_available}
+                    detailHref={`/gsc/${id}/pages/detail?${new URLSearchParams({ url: r.page, days: String(q.days), compare: q.compare })}`}
+                  />
                 ))}
               </tbody>
             </table>
@@ -345,15 +350,26 @@ function SortHeader({
   );
 }
 
-function PageTableRow({ row, compareAvailable }: { row: PageRow; compareAvailable: boolean }) {
+function PageTableRow({ row, compareAvailable, detailHref }: { row: PageRow; compareAvailable: boolean; detailHref: string }) {
   const change = row.click_change;
   const path = row.page.replace(/^https?:\/\/[^/]+/, "") || "/";
   return (
     <tr className="border-b border-border align-top last:border-0">
       <td className="max-w-0 px-4 py-2">
-        <a href={row.page} target="_blank" rel="noreferrer" className="block truncate hover:underline" title={row.page}>
-          {path}
-        </a>
+        <div className="flex items-center gap-1.5">
+          <Link href={detailHref} className="truncate hover:text-accent hover:underline" title={`${row.page} — open page details`}>
+            {path}
+          </Link>
+          <a
+            href={row.page}
+            target="_blank"
+            rel="noreferrer"
+            className="shrink-0 text-xs text-muted hover:text-foreground"
+            aria-label="Open the live page in a new tab"
+          >
+            ↗
+          </a>
+        </div>
         <div className="mt-1 flex flex-wrap gap-1">
           <span className="rounded border border-border px-1.5 py-0.5 text-[11px] text-muted">{TYPE_LABEL[row.type]}</span>
           {FILTER_ORDER.filter((f) => row.flags.includes(f)).map((f) => (

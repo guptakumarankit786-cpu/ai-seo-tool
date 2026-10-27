@@ -13,7 +13,13 @@ import {
 import { fmt, type Summary } from "@/lib/api";
 
 /** Clicks + impressions per day, with the comparison period drawn dashed on the same days. */
-export function TrafficChart({ summary, compareLabel }: { summary: Summary; compareLabel: string }) {
+export function TrafficChart({
+  summary,
+  compareLabel,
+}: {
+  summary: Pick<Summary, "start_date" | "compare_start" | "daily" | "previous_daily">;
+  compareLabel: string;
+}) {
   // Shift each comparison day onto the matching day of the current window.
   const offset = Date.parse(summary.start_date) - Date.parse(summary.compare_start);
   const previous = new Map(

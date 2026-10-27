@@ -1,10 +1,10 @@
 """Page explorer: page types, filter flags, type totals and comparisons."""
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from app.gsc import pages
-from app.models import GscDailyMetric, GscPageMetric
+from app.gsc import google_api, pages
+from app.models import GscDailyMetric, GscIndexingExport, GscIndexingExportUrl, GscPageMetric, GscUrlInspection
 from tests.conftest import days_ago
 
 END = days_ago(3)
@@ -159,3 +159,73 @@ class TestGroupsAndFilters:
 
     def test_unknown_property_returns_404(self, client):
         assert client.get(URL.format(999)).status_code == 404
+
+
+class TestPageDetail:
+    """One page: totals, daily series, its keywords (live pull, Google mocked) and indexing status."""
+
+    PAGE = SITE + "/blogs/news/how-to"
+
+    @pytest.fixture
+    def live(self, monkeypatch):
+        def row(query, page, clicks, impressions, position):
+            return {"keys": [query, page], "clicks": clicks, "impressions": impressions,
+                    "ctr": clicks / impressions, "position": position}
+
+        rows = [
+            row("how to clean shoes", self.PAGE, 0, 200, 11.0),
+            row("example shoe care", self.PAGE, 0, 100, 14.0),  # brand ("example" from the domain)
+            row("how to clean shoes", SITE + "/pages/shoe-care", 2, 80, 6.0),  # another page for the same search
+            row("how to clean shoes", SITE + "/products/p1?variant=2", 0, 30, 9.0),  # Shopping URL: not counted
+            row("lace shoes", SITE + "/products/p1", 4, 90, 3.0),
+        ]
+        calls = []
+        monkeypatch.setattr(google_api, "access_token_for", lambda db, conn: "token")
+        monkeypatch.setattr(google_api, "search_analytics", lambda *a: calls.append(a) or list(rows))
+        return calls
+
+    def get(self, client, prop, **params):
+        params.setdefault("days", 7)
+        resp = client.get(f"/api/gsc/properties/{prop.id}/page-detail", params={"url": self.PAGE, **params})
+        assert resp.status_code == 200, resp.text
+        return resp.json()
+
+    def test_totals_flags_and_daily_series(self, client, seeded, live):
+        body = self.get(client, seeded)
+
+        assert (body["type"], body["totals"]["impressions"], body["totals"]["clicks"]) == ("blogs", 300, 0)
+        assert {"zero_clicks", "striking"} <= set(body["flags"])
+        assert [d["date"] for d in body["daily"]] == [END.isoformat()]
+        assert body["previous_totals"] == {"clicks": 0, "impressions": 0, "ctr": 0.0, "position": 0.0}
+
+    def test_keywords_with_brand_flag_and_competing_pages(self, client, seeded, live):
+        kws = {k["query"]: k for k in self.get(client, seeded)["keywords"]}
+
+        assert list(kws) == ["how to clean shoes", "example shoe care"]  # by clicks, then impressions
+        assert kws["how to clean shoes"]["other_pages"] == 1  # the Shopping URL isn't counted
+        assert (kws["example shoe care"]["brand"], kws["how to clean shoes"]["brand"]) == (True, False)
+        self.get(client, seeded)
+        assert len(live) == 1  # second open served from the cache
+
+    def test_no_keywords_beyond_90_days(self, client, seeded, live):
+        body = self.get(client, seeded, days=180)
+        assert (body["keywords_available"], body["keywords"], len(live)) == (False, [], 0)
+
+    def test_indexing_status_and_export_lists(self, client, db, seeded, live):
+        assert self.get(client, seeded)["inspection"] is None
+        db.add(GscUrlInspection(property_id=seeded.id, url=self.PAGE, coverage_state="Crawled - currently not indexed",
+                                inspected_at=datetime.now(UTC), in_sitemap=True))
+        export = GscIndexingExport(property_id=seeded.id, kind="issue", filename="x.zip", issue="Soft 404")
+        export.urls = [GscIndexingExportUrl(url=self.PAGE)]
+        db.add(export)
+        db.commit()
+
+        body = self.get(client, seeded)
+
+        assert body["inspection"]["indexed"] is False
+        assert body["inspection"]["advice"]["verdict"] == "fix"
+        assert [(e["issue"], e["advice"]["verdict"]) for e in body["export_issues"]] == [("Soft 404", "fix")]
+
+    def test_unknown_page_returns_404(self, client, seeded, live):
+        resp = client.get(f"/api/gsc/properties/{seeded.id}/page-detail", params={"url": SITE + "/nope"})
+        assert resp.status_code == 404

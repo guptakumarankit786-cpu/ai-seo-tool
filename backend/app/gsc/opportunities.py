@@ -43,6 +43,9 @@ StrikingSort = Literal["potential", "impressions", "clicks", "position"]
 
 def cached_entry(db: Session, prop: GscProperty, start: date, end: date) -> GscQueryPageCacheEntry:
     """The query+page pull for this range, fetched from Google if missing or stale."""
+    # Two requests opening the same range at once would both pull from Google; the second waits
+    # here (until the first commits) and then finds the fresh entry.
+    db.execute(text("select pg_advisory_xact_lock(hashtext('gsc_query_page_cache'), :pid)"), {"pid": prop.id})
     entry = db.scalars(
         select(GscQueryPageCacheEntry).where(
             GscQueryPageCacheEntry.property_id == prop.id,

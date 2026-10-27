@@ -216,6 +216,37 @@ export type PageReport = {
   items: PageRow[];
 };
 
+export type PageKeyword = {
+  query: string;
+  brand: boolean;
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number;
+  other_pages: number;
+};
+
+export type PageDetail = Omit<Summary, "site_url"> & {
+  page: string;
+  type: PageType;
+  flags: PageFilter[];
+  expected_ctr: number | null;
+  keywords_available: boolean;
+  keywords_fetched_at: string | null;
+  keywords: PageKeyword[];
+  inspection: {
+    coverage_state: string | null;
+    indexed: boolean;
+    last_crawl_time: string | null;
+    inspected_at: string | null;
+    google_canonical: string | null;
+    user_canonical: string | null;
+    in_sitemap: boolean;
+    advice: Advice | null;
+  } | null;
+  export_issues: { issue: string; uploaded_at: string; last_crawled: string | null; advice: Advice }[];
+};
+
 export type PageQuery = {
   days: number;
   compare: Compare;
@@ -453,6 +484,10 @@ export const api = {
     if (q.search.trim()) params.set("search", q.search.trim());
     return request<PageReport>(`/api/gsc/properties/${id}/page-report?${params}`);
   },
+  pageDetail: (id: number, url: string, days: number, compare: Compare) =>
+    request<PageDetail>(
+      `/api/gsc/properties/${id}/page-detail?${new URLSearchParams({ url, days: String(days), compare })}`,
+    ),
   competitorTerms: (id: number) => request<{ terms: string[] }>(`/api/gsc/properties/${id}/competitor-terms`),
   setCompetitorTerms: (id: number, terms: string[]) =>
     request<{ terms: string[] }>(`/api/gsc/properties/${id}/competitor-terms`, {

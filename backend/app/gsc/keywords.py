@@ -276,6 +276,8 @@ def _cached_entry(
     db: Session, property_id: int, win: Window, days: int, terms: list[str], competitors: list[str], synced_at
 ) -> int:
     """Id of a cache entry for this key, (re)building it if missing or older than the last sync."""
+    # Concurrent first opens would build the same set twice; the second waits for the first's commit.
+    db.execute(text("select pg_advisory_xact_lock(hashtext('gsc_keyword_cache'), :pid)"), {"pid": property_id})
     key = cache_key(win, days, terms, competitors)
     entry = db.scalars(
         select(GscKeywordCacheEntry).where(
