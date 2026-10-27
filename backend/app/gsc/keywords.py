@@ -83,7 +83,10 @@ class Window:
     lookback_end: date | None
 
 
-def window_for(start: date, end: date, compare_start: date, compare_end: date, first_stored: date | None) -> Window:
+def window_for(
+    start: date, end: date, compare_start: date | None, compare_end: date | None, first_stored: date | None
+) -> Window:
+    """The report window; comparison and "new" look-back only where stored history covers them."""
     lookback_start = start - timedelta(days=NEW_LOOKBACK_DAYS)
 
     def covered(since: date) -> bool:
@@ -92,8 +95,8 @@ def window_for(start: date, end: date, compare_start: date, compare_end: date, f
     return Window(
         start=start,
         end=end,
-        compare_start=compare_start if covered(compare_start) else None,
-        compare_end=compare_end if covered(compare_start) else None,
+        compare_start=compare_start if compare_start and covered(compare_start) else None,
+        compare_end=compare_end if compare_start and covered(compare_start) else None,
         lookback_start=lookback_start if covered(lookback_start) else None,
         lookback_end=start - timedelta(days=1) if covered(lookback_start) else None,
     )

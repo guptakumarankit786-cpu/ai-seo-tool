@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { use, useEffect, useMemo, useState } from "react";
-import { COMPARE_LABEL, RangeControls } from "@/components/range-controls";
+import { COMPARE_LABEL, DateBar, periodText, useDateRange, withPreset } from "@/components/range-controls";
 import { Badge, Banner, Button, Card } from "@/components/ui";
-import { api, fmt, type Compare, type PageDetail, type PageKeyword } from "@/lib/api";
+import { api, fmt, type PageDetail, type PageKeyword } from "@/lib/api";
 import { VerdictBadge } from "../../indexing/indexing-view";
 import { Kpi } from "../../property-dashboard";
 import { TrafficChart } from "../../traffic-chart";
@@ -17,11 +17,10 @@ export function PageDetailView({ params }: { params: Promise<{ propertyId: strin
   const id = Number(use(params).propertyId);
   const search = useSearchParams();
   const url = search.get("url") ?? "";
-  const [days, setDays] = useState(Number(search.get("days")) || 28);
-  const [compare, setCompare] = useState<Compare>(search.get("compare") === "year" ? "year" : "previous");
+  const [range, setRange] = useDateRange();
   const [data, setData] = useState<PageDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const requestKey = JSON.stringify([url, days, compare]);
+  const requestKey = JSON.stringify([url, range]);
   const [doneKey, setDoneKey] = useState<string | null>(null);
   const loading = doneKey !== requestKey;
 
@@ -29,18 +28,18 @@ export function PageDetailView({ params }: { params: Promise<{ propertyId: strin
     if (!url) return;
     let cancelled = false;
     api
-      .pageDetail(id, url, days, compare)
+      .pageDetail(id, url, range)
       .then((res) => {
         if (cancelled) return;
         setData(res);
         setError(null);
       })
       .catch((e: Error) => !cancelled && setError(e.message))
-      .finally(() => !cancelled && setDoneKey(JSON.stringify([url, days, compare])));
+      .finally(() => !cancelled && setDoneKey(JSON.stringify([url, range])));
     return () => {
       cancelled = true;
     };
-  }, [id, url, days, compare]);
+  }, [id, url, range]);
 
   const path = url.replace(/^https?:\/\/[^/]+/, "") || "/";
   const backHref = `/gsc/${id}/pages`;
@@ -68,13 +67,13 @@ export function PageDetailView({ params }: { params: Promise<{ propertyId: strin
         </div>
         {data && (
           <p className="mt-2 text-sm text-muted">
-            {fmt.date(data.start_date)} – {fmt.date(data.end_date)}
+            {periodText(data)}
             {loading && " · Updating…"}
           </p>
         )}
       </header>
 
-      <RangeControls days={days} onDays={setDays} compare={compare} onCompare={setCompare} />
+      <DateBar />
 
       {error && <Banner tone="error">{error}</Banner>}
       {!data && !error && (
@@ -106,14 +105,14 @@ export function PageDetailView({ params }: { params: Promise<{ propertyId: strin
           <Card className="p-4">
             <h2 className="mb-3 text-sm font-medium">Clicks and impressions</h2>
             {data.daily.length ? (
-              <TrafficChart summary={data} compareLabel={COMPARE_LABEL[compare]} />
+              <TrafficChart summary={data} compareLabel={COMPARE_LABEL[data.compare]} />
             ) : (
               <p className="py-10 text-center text-sm text-muted">No impressions for this page in this range.</p>
             )}
           </Card>
 
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-            <KeywordsCard data={data} onPickDays={setDays} />
+            <KeywordsCard data={data} onPickDays={(days) => setRange(withPreset(range, days))} />
             <IndexingCard data={data} propertyId={id} />
           </div>
         </>

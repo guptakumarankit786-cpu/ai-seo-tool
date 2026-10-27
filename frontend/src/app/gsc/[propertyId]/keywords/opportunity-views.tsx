@@ -8,6 +8,7 @@ import {
   OPPORTUNITY_MAX_DAYS,
   type CannibalResponse,
   type CannibalRow,
+  type DateRange,
   type QuerySegment,
   type StrikingResponse,
   type StrikingRow,
@@ -131,11 +132,11 @@ const STRIKING_SORTS: { key: StrikingSort; label: string }[] = [
   { key: "position", label: "Position" },
 ];
 
-export function StrikingPanel({ propertyId, days, segment }: { propertyId: number; days: number; segment: QuerySegment }) {
+export function StrikingPanel({ propertyId, range, segment }: { propertyId: number; range: DateRange; segment: QuerySegment }) {
   const [sort, setSort] = useState<StrikingSort>("potential");
   const { data, rows, error, loading, more } = usePaged<StrikingRow, StrikingResponse>(
-    (offset) => api.strikingDistance(propertyId, days, segment, sort, PAGE_SIZE, offset),
-    [propertyId, days, segment, sort],
+    (offset) => api.strikingDistance(propertyId, range, segment, sort, PAGE_SIZE, offset),
+    [propertyId, range, segment, sort],
   );
 
   return (
@@ -224,10 +225,10 @@ export function StrikingPanel({ propertyId, days, segment }: { propertyId: numbe
 
 // ---------- cannibalisation ----------
 
-export function CannibalPanel({ propertyId, days, segment }: { propertyId: number; days: number; segment: QuerySegment }) {
+export function CannibalPanel({ propertyId, range, segment }: { propertyId: number; range: DateRange; segment: QuerySegment }) {
   const { data, rows, error, loading, more } = usePaged<CannibalRow, CannibalResponse>(
-    (offset) => api.cannibalisation(propertyId, days, segment, PAGE_SIZE, offset),
-    [propertyId, days, segment],
+    (offset) => api.cannibalisation(propertyId, range, segment, PAGE_SIZE, offset),
+    [propertyId, range, segment],
   );
 
   return (

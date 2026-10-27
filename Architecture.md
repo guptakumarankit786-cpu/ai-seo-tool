@@ -82,7 +82,7 @@ Deleting a connection cascades to everything below it. Schema changes go through
 
 **Clients list** — `GET /api/gsc/status` returns every property with its data range, latest sync run and indexing counts (`pages_inspected`, `last_inspected_at`, `export_uploaded_at` of the newest overview export). The frontend groups properties into brands by host (scheme, `www.` and path removed) and derives the status: data ending ≤ 1 day after the expected newest day (today − 3) is up to date.
 
-**Comparisons** — `summary` and `segments` take `compare=previous|year`. *previous* = the equal-length window before; *year* = same window 364 days earlier (weekday-aligned). If stored data doesn't reach back to the start of the comparison window, comparison totals are `null` (no partial comparisons).
+**Date range & comparisons** — every report endpoint takes the same `Period` dependency (`router.period_params`): `days` (ending at the latest synced day) **or** `start`+`end` (custom, ≤ 486 days), and `compare=previous|year|custom|none` (+ `compare_start`/`compare_end` for custom). *previous* = the equal-length window before; *year* = same window 364 days earlier (weekday-aligned); *none* = no comparison window at all. Invalid combinations return 422 with a plain message. If stored data doesn't reach back to the start of the comparison window, comparison values are `null` (no partial comparisons). Live views (`opportunities/*`, page keywords) reject ranges over 90 days. Frontend: `components/range-controls.tsx` holds one shared range (`useDateRange`, `useSyncExternalStore` + `localStorage`) and the `DateBar`; `rangeParams()` in `lib/api.ts` turns it into query parameters for every call.
 
 **Indexing inspection** — `POST /properties/{id}/indexing` (user-triggered):
 1. Discover URLs: sitemaps from the Sitemaps API (follows indexes, gzip, size/count caps) + distinct clean pages (no `?`/`#`) from performance data; scoped to the property; prune URLs no longer found.
@@ -128,7 +128,7 @@ frontend/src/
   components/property-tabs.tsx       Performance | Keywords | Pages | Indexing tabs
   components/use-sync.ts             start + poll a sync
   components/terms-editor.tsx        chips + Edit editor (brand terms, competitor terms)
-  components/range-controls.tsx      date range + comparison controls (Performance, Keywords)
+  components/range-controls.tsx      shared date range store + DateBar (presets, custom dates, compare previous / year / custom / none)
   components/sync-controls.tsx       sync range picker + status line (shared by Integrations and Performance)
   lib/api.ts                         typed API client + formatters
 ```
@@ -148,4 +148,4 @@ Pages are thin server components wrapping client components in `<Suspense>` (req
 ```bash
 docker compose exec backend python -m pytest -q
 ```
-228 tests: OAuth, encryption, sync, reports maths, inspection discovery/quota/ordering, export parsing, advice, brand matching/segments, chunked/latest sync, comparisons, keyword types/filters/cache, striking distance / cannibalisation / live cache, seasonal / spikes / competitors, low-CTR pages, endpoints. Frontend: typecheck + lint; verified manually in the browser.
+239 tests: OAuth, encryption, sync, reports maths, inspection discovery/quota/ordering, export parsing, advice, brand matching/segments, chunked/latest sync, comparisons, keyword types/filters/cache, striking distance / cannibalisation / live cache, seasonal / spikes / competitors, low-CTR pages, endpoints. Frontend: typecheck + lint; verified manually in the browser.

@@ -21,7 +21,7 @@ export function TrafficChart({
   compareLabel: string;
 }) {
   // Shift each comparison day onto the matching day of the current window.
-  const offset = Date.parse(summary.start_date) - Date.parse(summary.compare_start);
+  const offset = summary.compare_start ? Date.parse(summary.start_date) - Date.parse(summary.compare_start) : 0;
   const previous = new Map(
     summary.previous_daily.map((d) => [
       new Date(Date.parse(d.date) + offset).toISOString().slice(0, 10),

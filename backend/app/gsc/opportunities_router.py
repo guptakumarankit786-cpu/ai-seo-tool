@@ -8,16 +8,12 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.gsc import brand, google_api, opportunities
 from app.gsc.keywords import Segment, min_impressions
-from app.gsc.router import _window
+from app.gsc.router import Period, PeriodDep
 from app.models import GscProperty
 
 router = APIRouter(prefix="/api/gsc/properties/{property_id}/opportunities", tags=["gsc-opportunities"])
 
 DbDep = Annotated[Session, Depends(get_db)]
-Days = Annotated[
-    int,
-    Query(ge=1, le=opportunities.MAX_DAYS, description="Up to 90 days: page-level data is pulled live from Google"),
-]
 
 
 class Source(BaseModel):
@@ -73,13 +69,14 @@ class CannibalOut(Source):
     items: list[CannibalRow]
 
 
-def _load(db: Session, property_id: int, days: int):
+def _load(db: Session, property_id: int, period: Period):
     prop = db.get(GscProperty, property_id)
     if not prop:
         raise HTTPException(404, "Property not found")
-    start, end = _window(db, prop.id, days)
+    if period.days > opportunities.MAX_DAYS:
+        raise HTTPException(422, f"Pick up to {opportunities.MAX_DAYS} days: page-level data is pulled live from Google")
     try:
-        entry = opportunities.cached_entry(db, prop, start, end)
+        entry = opportunities.cached_entry(db, prop, period.start, period.end)
     except google_api.GoogleAPIError as exc:
         raise HTTPException(502, f"Couldn't fetch page-level data from Google: {exc}")
     return prop, entry, brand.effective_terms(prop.brand_terms, prop.site_url)
@@ -89,14 +86,15 @@ def _load(db: Session, property_id: int, days: int):
 def striking_distance(
     property_id: int,
     db: DbDep,
-    days: Days = 28,
+    period: PeriodDep,
     segment: Segment = "all",
     sort: opportunities.StrikingSort = "potential",
     limit: Annotated[int, Query(ge=1, le=500)] = 100,
     offset: Annotated[int, Query(ge=0)] = 0,
 ):
     """Keywords whose main page ranks 4–20: the quickest wins, ranked by potential extra clicks."""
-    prop, entry, terms = _load(db, property_id, days)
+    prop, entry, terms = _load(db, property_id, period)
+    days = period.days
     total, items = opportunities.striking_distance(db, entry.id, terms, days, segment, sort, limit, offset)
     return StrikingOut(
         start_date=entry.start_date,
@@ -115,13 +113,14 @@ def striking_distance(
 def cannibalisation(
     property_id: int,
     db: DbDep,
-    days: Days = 28,
+    period: PeriodDep,
     segment: Segment = "all",
     limit: Annotated[int, Query(ge=1, le=500)] = 100,
     offset: Annotated[int, Query(ge=0)] = 0,
 ):
     """Keywords where several of the site's pages compete for the same searches."""
-    prop, entry, terms = _load(db, property_id, days)
+    prop, entry, terms = _load(db, property_id, period)
+    days = period.days
     total, items = opportunities.cannibalisation(db, entry.id, terms, days, segment, limit, offset)
     return CannibalOut(
         start_date=entry.start_date,

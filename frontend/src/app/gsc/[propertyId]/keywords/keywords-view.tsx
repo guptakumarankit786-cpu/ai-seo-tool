@@ -4,7 +4,7 @@ import Link from "next/link";
 import { use, useEffect, useState } from "react";
 import { PropertyTabs } from "@/components/property-tabs";
 import { TermsEditor } from "@/components/terms-editor";
-import { COMPARE_LABEL, RangeControls } from "@/components/range-controls";
+import { COMPARE_LABEL, DateBar, periodText, rangeDays, useDateRange, withPreset } from "@/components/range-controls";
 import { Badge, Banner, Button, Card } from "@/components/ui";
 import {
   api,
@@ -70,9 +70,8 @@ function describe(type: KeywordType, d: KeywordsResponse["definitions"], compare
 export function KeywordsView({ params }: { params: Promise<{ propertyId: string }> }) {
   const id = Number(use(params).propertyId);
   const [property, setProperty] = useState<Property | null>(null);
+  const [range, setRange] = useDateRange();
   const [q, setQ] = useState<KeywordQuery>({
-    days: 28,
-    compare: "previous",
     segment: "all",
     types: [],
     search: "",
@@ -89,12 +88,17 @@ export function KeywordsView({ params }: { params: Promise<{ propertyId: string 
   // Loading = the filters on screen differ from the ones the last finished request used.
   const [competitors, setCompetitors] = useState<string[] | null>(null);
   const [termsVersion, setTermsVersion] = useState(0); // bumps after competitor terms change
-  const requestKey = JSON.stringify([q, termsVersion]);
+  const requestKey = JSON.stringify([q, range, termsVersion]);
   const [doneKey, setDoneKey] = useState<string | null>(null);
   const loading = doneKey !== requestKey;
 
-  // Any filter change starts from the first page.
+  // Any filter change starts from the first page — a new date range too.
   const update = (patch: Partial<KeywordQuery>) => setQ((prev) => ({ ...prev, offset: 0, ...patch }));
+  const [seenRange, setSeenRange] = useState(range);
+  if (seenRange !== range) {
+    setSeenRange(range);
+    if (q.offset) setQ((prev) => ({ ...prev, offset: 0 }));
+  }
 
   useEffect(() => {
     api.property(id).then(setProperty).catch((e: Error) => setError(e.message));
@@ -116,7 +120,7 @@ export function KeywordsView({ params }: { params: Promise<{ propertyId: string 
   useEffect(() => {
     let cancelled = false;
     api
-      .keywords(id, q)
+      .keywords(id, range, q)
       .then((res) => {
         if (cancelled) return;
         setData(res);
@@ -124,11 +128,11 @@ export function KeywordsView({ params }: { params: Promise<{ propertyId: string 
         setError(null);
       })
       .catch((e: Error) => !cancelled && setError(e.message))
-      .finally(() => !cancelled && setDoneKey(JSON.stringify([q, termsVersion])));
+      .finally(() => !cancelled && setDoneKey(JSON.stringify([q, range, termsVersion])));
     return () => {
       cancelled = true;
     };
-  }, [id, q, termsVersion]);
+  }, [id, q, range, termsVersion]);
 
   if (!property) return error ? <Banner tone="error">{error}</Banner> : <p className="text-sm text-muted">Loading…</p>;
 
@@ -150,10 +154,12 @@ export function KeywordsView({ params }: { params: Promise<{ propertyId: string 
         </div>
         {data && (
           <p className="mt-1 text-sm text-muted">
-            {fmt.date(data.start_date)} – {fmt.date(data.end_date)} · every keyword Google reported for this period
+            {periodText(data)} · every keyword Google reported for this period
           </p>
         )}
       </header>
+
+      <DateBar />
 
       <PropertyTabs propertyId={id} active="keywords" />
 
@@ -174,15 +180,8 @@ export function KeywordsView({ params }: { params: Promise<{ propertyId: string 
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        {view === "seasonal" || view === "spikes" ? (
-          <span className="text-sm text-muted">Uses all stored history, month by month.</span>
-        ) : (
-          <RangeControls
-            days={q.days}
-            onDays={(days) => update({ days })}
-            compare={q.compare}
-            onCompare={(compare) => update({ compare })}
-          />
+        {(view === "seasonal" || view === "spikes") && (
+          <span className="text-sm text-muted">Seasonal and Spikes ignore the date range: they use all stored history, month by month.</span>
         )}
         <div className="flex rounded-md border border-border bg-surface p-0.5 text-sm" role="tablist" aria-label="Brand filter">
           {(["all", "brand", "non_brand"] as QuerySegment[]).map((s) => (
@@ -203,12 +202,12 @@ export function KeywordsView({ params }: { params: Promise<{ propertyId: string 
       {view === "spikes" && <SpikesPanel propertyId={id} segment={q.segment} />}
 
       {(view === "striking" || view === "cannibal") &&
-        (q.days > OPPORTUNITY_MAX_DAYS ? (
-          <RangeTooLong onPick={(days) => update({ days })} />
+        (rangeDays(range) > OPPORTUNITY_MAX_DAYS ? (
+          <RangeTooLong onPick={(days) => setRange(withPreset(range, days))} />
         ) : view === "striking" ? (
-          <StrikingPanel propertyId={id} days={q.days} segment={q.segment} />
+          <StrikingPanel propertyId={id} range={range} segment={q.segment} />
         ) : (
-          <CannibalPanel propertyId={id} days={q.days} segment={q.segment} />
+          <CannibalPanel propertyId={id} range={range} segment={q.segment} />
         ))}
 
       {view === "all" && data && (
@@ -231,8 +230,10 @@ export function KeywordsView({ params }: { params: Promise<{ propertyId: string 
                     noCompetitors
                       ? "Add competitor names below first"
                       : unavailable
-                        ? "Not enough history for this date range"
-                        : describe(t, data.definitions, q.compare)
+                        ? data.compare === "none" && NEEDS_COMPARE.includes(t)
+                          ? "Choose a comparison above to use this"
+                          : "Not enough history for this date range"
+                        : describe(t, data.definitions, data.compare)
                   }
                   className={`rounded-full border px-3 py-1 text-sm transition disabled:cursor-not-allowed disabled:opacity-40 ${
                     active ? "border-accent bg-accent-soft text-accent" : "border-border hover:bg-accent-soft"
@@ -252,7 +253,7 @@ export function KeywordsView({ params }: { params: Promise<{ propertyId: string 
             <ul className="space-y-0.5 text-xs text-muted">
               {q.types.map((t) => (
                 <li key={t}>
-                  <b className="font-medium text-foreground">{TYPE_LABEL[t]}:</b> {describe(t, data.definitions, q.compare)}
+                  <b className="font-medium text-foreground">{TYPE_LABEL[t]}:</b> {describe(t, data.definitions, data.compare)}
                 </li>
               ))}
               {q.types.length > 1 && <li>Keywords must match all selected types.</li>}

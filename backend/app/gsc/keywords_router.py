@@ -7,8 +7,8 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.gsc import brand, keywords, seasonal, sync
-from app.gsc.router import Compare, _window, comparison_window
+from app.gsc import brand, keywords, seasonal
+from app.gsc.router import Compare, PeriodDep
 from app.models import GscDailyMetric, GscProperty
 
 router = APIRouter(prefix="/api/gsc/properties/{property_id}", tags=["gsc-keywords"])
@@ -46,6 +46,8 @@ class KeywordsOut(BaseModel):
     start_date: date
     end_date: date
     compare: Compare
+    compare_start: date | None  # the comparison window, when stored history covers it
+    compare_end: date | None
     compare_available: bool  # needed for lost / rising / declining
     new_available: bool  # needed for new
     definitions: Definitions
@@ -58,8 +60,7 @@ class KeywordsOut(BaseModel):
 def explore_keywords(
     property_id: int,
     db: DbDep,
-    days: Annotated[int, Query(ge=1, le=sync.MAX_HISTORY_DAYS)] = 28,
-    compare: Compare = "previous",
+    period: PeriodDep,
     segment: keywords.Segment = "all",
     types: Annotated[list[keywords.KeywordType] | None, Query(description="Keyword types; combined with AND")] = None,
     search: Annotated[str | None, Query(max_length=200)] = None,
@@ -73,10 +74,9 @@ def explore_keywords(
     if not prop:
         raise HTTPException(404, "Property not found")
 
-    start, end = _window(db, prop.id, days)
-    compare_start, compare_end = comparison_window(start, end, compare)
+    start, end, days = period.start, period.end, period.days
     first_stored = db.scalar(select(func.min(GscDailyMetric.date)).where(GscDailyMetric.property_id == prop.id))
-    win = keywords.window_for(start, end, compare_start, compare_end, first_stored)
+    win = keywords.window_for(start, end, period.compare_start, period.compare_end, first_stored)
 
     counts, total, items = keywords.explore(
         db,
@@ -97,7 +97,9 @@ def explore_keywords(
     return KeywordsOut(
         start_date=start,
         end_date=end,
-        compare=compare,
+        compare=period.compare,
+        compare_start=win.compare_start,
+        compare_end=win.compare_end,
         compare_available=win.compare_start is not None,
         new_available=win.lookback_start is not None,
         definitions=Definitions(

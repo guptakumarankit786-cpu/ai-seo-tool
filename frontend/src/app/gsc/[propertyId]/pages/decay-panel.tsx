@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { SyncStatus } from "@/components/sync-controls";
 import { Banner, Button, Card } from "@/components/ui";
-import { api, fmt, type DecayCause, type DecayResponse, type DecayRow, type PageType } from "@/lib/api";
+import { useSync } from "@/components/use-sync";
+import { api, fmt, type DecayCause, type DecayResponse, type DecayRow, type PageType, type Property } from "@/lib/api";
 import { MonthBars } from "../keywords/monthly-views";
 import { usePaged } from "../keywords/opportunity-views";
 import { TYPE_LABEL } from "./pages-view";
@@ -38,11 +40,13 @@ function explain(r: DecayRow, d: DecayResponse["definitions"]): string {
   }[r.cause];
 }
 
-export function DecayPanel({ propertyId }: { propertyId: number }) {
+export function DecayPanel({ property, onSynced }: { property: Property; onSynced: () => void }) {
+  const propertyId = property.id;
   const [types, setTypes] = useState<PageType[]>([]);
+  const [version, setVersion] = useState(0);
   const { data, rows, error, loading, more } = usePaged<DecayRow, DecayResponse>(
     (offset) => api.pageDecay(propertyId, types, PAGE_SIZE, offset),
-    [propertyId, types],
+    [propertyId, types, version],
   );
 
   if (error) return <Banner tone="error">{error}</Banner>;
@@ -55,9 +59,16 @@ export function DecayPanel({ propertyId }: { propertyId: number }) {
         <p className="font-medium">Not enough history yet</p>
         <p className="text-muted">
           Content decay compares the last {d.window_months} full months with the {d.window_months} before, so it needs{" "}
-          {d.min_months} full months of data ({data.months.length} stored). Sync <b>Full 16 months</b> for this client from
-          Integrations.
+          {d.min_months} full months of data ({data.months.length} stored). Pull this client&apos;s full 16 months from
+          Google — it runs in the background (a few minutes on large sites) and you can keep working.
         </p>
+        <FullSync
+          property={property}
+          onDone={() => {
+            setVersion((v) => v + 1);
+            onSynced();
+          }}
+        />
       </Card>
     );
   }
@@ -122,6 +133,23 @@ export function DecayPanel({ propertyId }: { propertyId: number }) {
         </div>
       )}
     </Card>
+  );
+}
+
+function FullSync({ property, onDone }: { property: Property; onDone: () => void }) {
+  const { run, running, error, start } = useSync(property, onDone);
+  return (
+    <div className="space-y-1 pt-2">
+      <Button disabled={running} onClick={() => start({ mode: "range", days: 486 })}>
+        {running ? "Syncing…" : "Sync full 16 months"}
+      </Button>
+      {(running || run?.status === "failed") && (
+        <p className="text-xs text-muted">
+          <SyncStatus property={property} running={running} run={run} />
+        </p>
+      )}
+      {error && <p className="text-xs text-negative">{error}</p>}
+    </div>
   );
 }
 

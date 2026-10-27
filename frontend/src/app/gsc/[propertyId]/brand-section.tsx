@@ -18,7 +18,7 @@ import {
   api,
   fmt,
   type BrandTerms,
-  type Compare,
+  type DateRange,
   type DimensionRow,
   type QuerySegment,
   type SegmentTotals,
@@ -28,14 +28,12 @@ import {
 /** Brand vs non-brand split: terms editor, two summary cards, hidden-data note and daily chart. */
 export function BrandSection({
   propertyId,
-  days,
-  compare,
+  range,
   version,
   onTermsChange,
 }: {
   propertyId: number;
-  days: number;
-  compare: Compare;
+  range: DateRange;
   version: number;
   onTermsChange: () => void;
 }) {
@@ -45,7 +43,7 @@ export function BrandSection({
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([api.segments(propertyId, days, compare), api.brandTerms(propertyId)])
+    Promise.all([api.segments(propertyId, range), api.brandTerms(propertyId)])
       .then(([s, t]) => {
         if (cancelled) return;
         setData(s);
@@ -56,7 +54,7 @@ export function BrandSection({
     return () => {
       cancelled = true;
     };
-  }, [propertyId, days, compare, version]);
+  }, [propertyId, range, version]);
 
   if (error) return <Card className="p-4 text-sm text-negative">{error}</Card>;
   if (!data || !terms) return null;
@@ -207,7 +205,7 @@ const SEGMENTS: { key: QuerySegment; label: string }[] = [
 ];
 
 /** Top queries with an All / Brand / Non-brand filter. */
-export function QueriesTable({ propertyId, days, version }: { propertyId: number; days: number; version: number }) {
+export function QueriesTable({ propertyId, range, version }: { propertyId: number; range: DateRange; version: number }) {
   const [segment, setSegment] = useState<QuerySegment>("all");
   const [rows, setRows] = useState<DimensionRow[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -215,7 +213,7 @@ export function QueriesTable({ propertyId, days, version }: { propertyId: number
   useEffect(() => {
     let cancelled = false;
     api
-      .queries(propertyId, days, 50, segment)
+      .queries(propertyId, range, 50, segment)
       .then((r) => {
         if (cancelled) return;
         setRows(r);
@@ -225,7 +223,7 @@ export function QueriesTable({ propertyId, days, version }: { propertyId: number
     return () => {
       cancelled = true;
     };
-  }, [propertyId, days, segment, version]);
+  }, [propertyId, range, segment, version]);
 
   return (
     <Card className="overflow-hidden">

@@ -1,6 +1,7 @@
 import secrets
+from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
-from typing import Literal
+from typing import Annotated, Literal
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
@@ -78,12 +79,15 @@ class SyncIn(BaseModel):
     days: int = 90
 
 
-Compare = Literal["previous", "year"]
+# previous: the equal-length window before · year: same weekdays 52 weeks earlier ·
+# custom: compare_start..compare_end · none: no comparison at all.
+Compare = Literal["previous", "year", "custom", "none"]
 # Year-over-year compares with the same weekdays 52 weeks earlier.
 YEAR_OFFSET = timedelta(days=364)
 
 
 def comparison_window(start: date, end: date, compare: Compare) -> tuple[date, date]:
+    """Window for the "previous" and "year" modes (custom dates come from the request)."""
     if compare == "year":
         return start - YEAR_OFFSET, end - YEAR_OFFSET
     length = end - start + timedelta(days=1)
@@ -113,8 +117,8 @@ class SummaryOut(BaseModel):
     start_date: date
     end_date: date
     compare: Compare
-    compare_start: date
-    compare_end: date
+    compare_start: date | None  # null when compare=none
+    compare_end: date | None
     totals: Totals
     previous_totals: Totals | None  # totals for the comparison window
     daily: list[DailyPoint]
@@ -178,6 +182,55 @@ def _property_out(db: Session, prop: GscProperty) -> PropertyOut:
     )
 
 
+@dataclass
+class Period:
+    """The date range every report uses, plus the window it's compared with (none when compare="none")."""
+
+    start: date
+    end: date
+    compare: Compare
+    compare_start: date | None
+    compare_end: date | None
+
+    @property
+    def days(self) -> int:
+        return (self.end - self.start).days + 1
+
+
+def period_params(
+    property_id: int,
+    db: Session = Depends(get_db),
+    days: int = Query(28, ge=1, le=sync.MAX_HISTORY_DAYS, description="Last N days, ending at the latest synced day"),
+    start: date | None = Query(None, description="Custom range start (with `end`; overrides `days`)"),
+    end: date | None = Query(None, description="Custom range end"),
+    compare: Compare = "previous",
+    compare_start: date | None = Query(None, description="With compare=custom"),
+    compare_end: date | None = Query(None, description="With compare=custom"),
+) -> Period:
+    if (start is None) != (end is None):
+        raise HTTPException(422, "Give both a start and an end date for a custom range")
+    if start is not None and end is not None:
+        if start > end:
+            raise HTTPException(422, "The start date must be on or before the end date")
+        if (end - start).days + 1 > sync.MAX_HISTORY_DAYS:
+            raise HTTPException(422, f"A range can be at most {sync.MAX_HISTORY_DAYS} days (Google keeps 16 months)")
+    else:
+        start, end = _window(db, property_id, days)
+
+    if compare == "none":
+        return Period(start, end, compare, None, None)
+    if compare == "custom":
+        if compare_start is None or compare_end is None:
+            raise HTTPException(422, "Give both comparison dates to compare with a custom range")
+        if compare_start > compare_end:
+            raise HTTPException(422, "The comparison start date must be on or before its end date")
+        return Period(start, end, compare, compare_start, compare_end)
+    return Period(start, end, compare, *comparison_window(start, end, compare))
+
+
+PeriodDep = Annotated[Period, Depends(period_params)]
+
+
 def _window(db: Session, property_id: int, days: int) -> tuple[date, date]:
     """Range ending at the latest synced day, so the window isn't padded with empty days."""
     latest = db.scalar(
@@ -210,9 +263,8 @@ def _totals(db: Session, property_id: int, start: date, end: date) -> Totals | N
 
 
 def _top(
-    db: Session, model, key_col, property_id: int, days: int, limit: int, *extra_where
+    db: Session, model, key_col, property_id: int, start: date, end: date, limit: int, *extra_where
 ) -> list[DimensionRow]:
-    start, end = _window(db, property_id, days)
     clicks = func.sum(model.clicks)
     impressions = func.sum(model.impressions)
     rows = db.execute(
@@ -394,27 +446,25 @@ def get_property(property_id: int, db: Session = Depends(get_db)):
 @router.get("/properties/{property_id}/summary", response_model=SummaryOut)
 def summary(
     property_id: int,
-    days: int = Query(28, ge=1, le=sync.MAX_HISTORY_DAYS),
-    compare: Compare = "previous",
+    period: PeriodDep,
     db: Session = Depends(get_db),
 ):
     prop = _get_property(db, property_id)
-    start, end = _window(db, prop.id, days)
-    compare_start, compare_end = comparison_window(start, end, compare)
-    totals = _totals(db, prop.id, start, end) or Totals(clicks=0, impressions=0, ctr=0, position=0)
-    comparable = has_history(db, prop.id, compare_start)
-    previous = _totals(db, prop.id, compare_start, compare_end) if comparable else None
+    p = period
+    totals = _totals(db, prop.id, p.start, p.end) or Totals(clicks=0, impressions=0, ctr=0, position=0)
+    comparable = p.compare_start is not None and has_history(db, prop.id, p.compare_start)
+    previous = _totals(db, prop.id, p.compare_start, p.compare_end) if comparable else None
     return SummaryOut(
         site_url=prop.site_url,
-        start_date=start,
-        end_date=end,
-        compare=compare,
-        compare_start=compare_start,
-        compare_end=compare_end,
+        start_date=p.start,
+        end_date=p.end,
+        compare=p.compare,
+        compare_start=p.compare_start,
+        compare_end=p.compare_end,
         totals=totals,
         previous_totals=previous,
-        daily=_daily(db, prop.id, start, end),
-        previous_daily=_daily(db, prop.id, compare_start, compare_end) if comparable else [],
+        daily=_daily(db, prop.id, p.start, p.end),
+        previous_daily=_daily(db, prop.id, p.compare_start, p.compare_end) if comparable else [],
     )
 
 
@@ -434,7 +484,7 @@ def _daily(db: Session, property_id: int, start: date, end: date) -> list[DailyP
 @router.get("/properties/{property_id}/queries", response_model=list[DimensionRow])
 def top_queries(
     property_id: int,
-    days: int = Query(28, ge=1, le=sync.MAX_HISTORY_DAYS),
+    period: PeriodDep,
     limit: int = Query(50, ge=1, le=1000),
     segment: Literal["all", "brand", "non_brand"] = "all",
     db: Session = Depends(get_db),
@@ -443,7 +493,7 @@ def top_queries(
     terms = brand.effective_terms(prop.brand_terms, prop.site_url)
     is_brand = brand.brand_condition(GscQueryMetric.query_norm, terms)
     extra = {"all": [], "brand": [is_brand], "non_brand": [~is_brand]}[segment]
-    rows = _top(db, GscQueryMetric, GscQueryMetric.query, property_id, days, limit, *extra)
+    rows = _top(db, GscQueryMetric, GscQueryMetric.query, property_id, period.start, period.end, limit, *extra)
     for row in rows:
         row.brand = brand.is_brand(row.key, terms)
     return rows
@@ -452,7 +502,7 @@ def top_queries(
 @router.get("/properties/{property_id}/pages", response_model=list[DimensionRow])
 def top_pages(
     property_id: int,
-    days: int = Query(28, ge=1, le=sync.MAX_HISTORY_DAYS),
+    period: PeriodDep,
     limit: int = Query(50, ge=1, le=1000),
     filter: Literal["all", "low_ctr"] = "all",
     db: Session = Depends(get_db),
@@ -461,8 +511,8 @@ def top_pages(
     position (same rule as low-CTR keywords; pages have no brand split). `filter=low_ctr` lists
     only those, biggest click shortfall (impressions × (typical − actual CTR)) first."""
     _get_property(db, property_id)
-    start, end = _window(db, property_id, days)
-    rows = [r for r in pages.page_rows(db, property_id, keywords.window_for(start, end, start, end, None), days) if r["impressions"]]
+    win = keywords.window_for(period.start, period.end, None, None, None)
+    rows = [r for r in pages.page_rows(db, property_id, win, period.days) if r["impressions"]]
     if filter == "low_ctr":
         rows = sorted(
             (r for r in rows if "low_ctr" in r["flags"]),

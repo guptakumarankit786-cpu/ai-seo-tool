@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { use, useCallback, useEffect, useState } from "react";
 import { PropertyTabs } from "@/components/property-tabs";
-import { COMPARE_LABEL, RangeControls } from "@/components/range-controls";
+import { COMPARE_LABEL, DateBar, periodText, useDateRange } from "@/components/range-controls";
 import { SyncControls, SyncStatus } from "@/components/sync-controls";
 import { Badge, Banner, Card } from "@/components/ui";
 import { useSync } from "@/components/use-sync";
@@ -11,7 +11,7 @@ import {
   api,
   fmt,
   propertyLabel,
-  type Compare,
+  type DateRange,
   type DimensionRow,
   type TopPagesFilter,
   type Property,
@@ -24,8 +24,7 @@ import { TrafficChart } from "./traffic-chart";
 
 export function PropertyDashboard({ params }: { params: Promise<{ propertyId: string }> }) {
   const id = Number(use(params).propertyId);
-  const [days, setDays] = useState<number>(28);
-  const [compare, setCompare] = useState<Compare>("previous");
+  const [range] = useDateRange();
   const [property, setProperty] = useState<Property | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +34,7 @@ export function PropertyDashboard({ params }: { params: Promise<{ propertyId: st
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([api.property(id), api.summary(id, days, compare)])
+    Promise.all([api.property(id), api.summary(id, range)])
       .then(([p, s]) => {
         if (cancelled) return;
         setProperty(p);
@@ -48,7 +47,7 @@ export function PropertyDashboard({ params }: { params: Promise<{ propertyId: st
     return () => {
       cancelled = true;
     };
-  }, [id, days, compare, version]);
+  }, [id, range, version]);
 
   if (error) return <Banner tone="error">{error}</Banner>;
   if (!property || !summary) return <p className="text-sm text-muted">Loading…</p>;
@@ -66,15 +65,12 @@ export function PropertyDashboard({ params }: { params: Promise<{ propertyId: st
             <h1 className="truncate text-2xl font-semibold tracking-tight">{name}</h1>
             <Badge>{kind}</Badge>
           </div>
-          <p className="mt-1 text-sm text-muted">
-            {fmt.date(summary.start_date)} – {fmt.date(summary.end_date)} · compared with{" "}
-            {fmt.date(summary.compare_start)} – {fmt.date(summary.compare_end)}
-          </p>
+          <p className="mt-1 text-sm text-muted">{periodText(summary)}</p>
         </div>
         <SyncBar property={property} onDone={load} />
       </header>
 
-      <RangeControls days={days} onDays={setDays} compare={compare} onCompare={setCompare} />
+      <DateBar />
 
       <PropertyTabs propertyId={id} active="performance" />
 
@@ -88,7 +84,7 @@ export function PropertyDashboard({ params }: { params: Promise<{ propertyId: st
       <Card className="p-4">
         <h2 className="mb-3 text-sm font-medium">Performance</h2>
         {summary.daily.length ? (
-          <TrafficChart summary={summary} compareLabel={COMPARE_LABEL[compare]} />
+          <TrafficChart summary={summary} compareLabel={COMPARE_LABEL[summary.compare]} />
         ) : (
           <p className="py-10 text-center text-sm text-muted">
             No data in this range yet. Run a sync to pull it in.
@@ -96,11 +92,11 @@ export function PropertyDashboard({ params }: { params: Promise<{ propertyId: st
         )}
       </Card>
 
-      <BrandSection propertyId={id} days={days} compare={compare} version={version} onTermsChange={load} />
+      <BrandSection propertyId={id} range={range} version={version} onTermsChange={load} />
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <QueriesTable propertyId={id} days={days} version={version} />
-        <PagesTable propertyId={id} days={days} version={version} />
+        <QueriesTable propertyId={id} range={range} version={version} />
+        <PagesTable propertyId={id} range={range} version={version} />
       </div>
     </div>
   );
@@ -153,7 +149,7 @@ export function Kpi({
           {delta.text} <span className="text-muted">{COMPARE_LABEL[summary.compare]}</span>
         </p>
       )}
-      {!prev && <p className="mt-1 text-xs text-muted">Not enough history to compare</p>}
+      {!prev && summary.compare !== "none" && <p className="mt-1 text-xs text-muted">Not enough history to compare</p>}
     </Card>
   );
 }
@@ -163,7 +159,7 @@ const PAGE_FILTERS: { key: TopPagesFilter; label: string }[] = [
   { key: "low_ctr", label: "Low CTR" },
 ];
 
-function PagesTable({ propertyId, days, version }: { propertyId: number; days: number; version: number }) {
+function PagesTable({ propertyId, range, version }: { propertyId: number; range: DateRange; version: number }) {
   const [filter, setFilter] = useState<TopPagesFilter>("all");
   const [rows, setRows] = useState<DimensionRow[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -171,7 +167,7 @@ function PagesTable({ propertyId, days, version }: { propertyId: number; days: n
   useEffect(() => {
     let cancelled = false;
     api
-      .pages(propertyId, days, 50, filter)
+      .pages(propertyId, range, 50, filter)
       .then((r) => {
         if (cancelled) return;
         setRows(r);
@@ -181,7 +177,7 @@ function PagesTable({ propertyId, days, version }: { propertyId: number; days: n
     return () => {
       cancelled = true;
     };
-  }, [propertyId, days, filter, version]);
+  }, [propertyId, range, filter, version]);
 
   return (
     <Card className="overflow-hidden">
@@ -234,7 +230,7 @@ function PagesTable({ propertyId, days, version }: { propertyId: number; days: n
                   <td className="max-w-0 px-4 py-2" title={r.key}>
                     <span className="flex items-center gap-2">
                       <Link
-                        href={`/gsc/${propertyId}/pages/detail?${new URLSearchParams({ url: r.key, days: String(days) })}`}
+                        href={`/gsc/${propertyId}/pages/detail?${new URLSearchParams({ url: r.key })}`}
                         className="truncate hover:text-accent hover:underline"
                       >
                         {r.key.replace(/^https?:\/\/[^/]+/, "") || "/"}

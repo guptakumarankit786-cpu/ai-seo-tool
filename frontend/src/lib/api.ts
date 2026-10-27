@@ -28,7 +28,29 @@ export type Property = {
 
 export type SyncRequest = { mode: "range"; days: number } | { mode: "latest" };
 
-export type Compare = "previous" | "year";
+export type Compare = "previous" | "year" | "custom" | "none";
+
+/** The one date range shared by every report: a preset (`days`) or custom dates, plus the comparison. */
+export type DateRange = {
+  days: number;
+  start: string | null; // custom range (both set) overrides `days`
+  end: string | null;
+  compare: Compare;
+  compareStart: string | null; // with compare = "custom"
+  compareEnd: string | null;
+};
+
+/** Query parameters for a DateRange. A custom comparison without its dates is sent as "none". */
+export function rangeParams(r: DateRange): Record<string, string> {
+  const p: Record<string, string> = r.start && r.end ? { start: r.start, end: r.end } : { days: String(r.days) };
+  if (r.compare !== "custom") p.compare = r.compare;
+  else if (r.compareStart && r.compareEnd) Object.assign(p, { compare: "custom", compare_start: r.compareStart, compare_end: r.compareEnd });
+  else p.compare = "none";
+  return p;
+}
+
+const qs = (r: DateRange, extra: Record<string, string | number> = {}) =>
+  new URLSearchParams({ ...rangeParams(r), ...Object.fromEntries(Object.entries(extra).map(([k, v]) => [k, String(v)])) });
 
 export type Connection = {
   id: number;
@@ -54,8 +76,8 @@ export type Summary = {
   start_date: string;
   end_date: string;
   compare: Compare;
-  compare_start: string;
-  compare_end: string;
+  compare_start: string | null; // null with no comparison
+  compare_end: string | null;
   totals: Totals;
   previous_totals: Totals | null;
   daily: (Totals & { date: string })[];
@@ -124,6 +146,8 @@ export type KeywordsResponse = {
   start_date: string;
   end_date: string;
   compare: Compare;
+  compare_start: string | null;
+  compare_end: string | null;
   compare_available: boolean;
   new_available: boolean;
   definitions: {
@@ -142,8 +166,6 @@ export type KeywordsResponse = {
 };
 
 export type KeywordQuery = {
-  days: number;
-  compare: Compare;
   segment: QuerySegment;
   types: KeywordType[];
   search: string;
@@ -197,6 +219,8 @@ export type PageReport = {
   start_date: string;
   end_date: string;
   compare: Compare;
+  compare_start: string | null;
+  compare_end: string | null;
   compare_available: boolean;
   new_available: boolean;
   definitions: {
@@ -284,8 +308,6 @@ export type DecayResponse = {
 };
 
 export type PageQuery = {
-  days: number;
-  compare: Compare;
   types: PageType[];
   filters: PageFilter[];
   search: string;
@@ -476,11 +498,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
-  summary: (id: number, days: number, compare: Compare = "previous") =>
-    request<Summary>(`/api/gsc/properties/${id}/summary?days=${days}&compare=${compare}`),
-  queries: (id: number, days: number, limit = 50, segment: QuerySegment = "all") =>
+  summary: (id: number, r: DateRange) => request<Summary>(`/api/gsc/properties/${id}/summary?${qs(r)}`),
+  queries: (id: number, r: DateRange, limit = 50, segment: QuerySegment = "all") =>
     request<DimensionRow[]>(
-      `/api/gsc/properties/${id}/queries?days=${days}&limit=${limit}&segment=${segment}`,
+      `/api/gsc/properties/${id}/queries?${qs(r, { limit, segment })}`,
     ),
   brandTerms: (id: number) => request<BrandTerms>(`/api/gsc/properties/${id}/brand-terms`),
   setBrandTerms: (id: number, terms: string[] | null) =>
@@ -488,14 +509,11 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ terms }),
     }),
-  segments: (id: number, days: number, compare: Compare = "previous") =>
-    request<Segments>(`/api/gsc/properties/${id}/segments?days=${days}&compare=${compare}`),
-  pages: (id: number, days: number, limit = 50, filter: TopPagesFilter = "all") =>
-    request<DimensionRow[]>(`/api/gsc/properties/${id}/pages?days=${days}&limit=${limit}&filter=${filter}`),
-  keywords: (id: number, q: KeywordQuery) => {
-    const params = new URLSearchParams({
-      days: String(q.days),
-      compare: q.compare,
+  segments: (id: number, r: DateRange) => request<Segments>(`/api/gsc/properties/${id}/segments?${qs(r)}`),
+  pages: (id: number, r: DateRange, limit = 50, filter: TopPagesFilter = "all") =>
+    request<DimensionRow[]>(`/api/gsc/properties/${id}/pages?${qs(r, { limit, filter })}`),
+  keywords: (id: number, r: DateRange, q: KeywordQuery) => {
+    const params = qs(r, {
       segment: q.segment,
       sort: q.sort,
       order: q.order,
@@ -506,10 +524,8 @@ export const api = {
     if (q.search.trim()) params.set("search", q.search.trim());
     return request<KeywordsResponse>(`/api/gsc/properties/${id}/keywords?${params}`);
   },
-  pageReport: (id: number, q: PageQuery) => {
-    const params = new URLSearchParams({
-      days: String(q.days),
-      compare: q.compare,
+  pageReport: (id: number, r: DateRange, q: PageQuery) => {
+    const params = qs(r, {
       sort: q.sort,
       order: q.order,
       limit: String(q.limit),
@@ -520,10 +536,8 @@ export const api = {
     if (q.search.trim()) params.set("search", q.search.trim());
     return request<PageReport>(`/api/gsc/properties/${id}/page-report?${params}`);
   },
-  pageDetail: (id: number, url: string, days: number, compare: Compare) =>
-    request<PageDetail>(
-      `/api/gsc/properties/${id}/page-detail?${new URLSearchParams({ url, days: String(days), compare })}`,
-    ),
+  pageDetail: (id: number, url: string, r: DateRange) =>
+    request<PageDetail>(`/api/gsc/properties/${id}/page-detail?${qs(r, { url })}`),
   pageDecay: (id: number, types: PageType[], limit: number, offset: number) => {
     const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
     types.forEach((t) => params.append("type", t));
@@ -541,13 +555,13 @@ export const api = {
     ),
   spikes: (id: number, segment: QuerySegment, limit = 100, offset = 0) =>
     request<SpikesResponse>(`/api/gsc/properties/${id}/keywords/spikes?segment=${segment}&limit=${limit}&offset=${offset}`),
-  strikingDistance: (id: number, days: number, segment: QuerySegment, sort: StrikingSort, limit = 100, offset = 0) =>
+  strikingDistance: (id: number, r: DateRange, segment: QuerySegment, sort: StrikingSort, limit = 100, offset = 0) =>
     request<StrikingResponse>(
-      `/api/gsc/properties/${id}/opportunities/striking-distance?days=${days}&segment=${segment}&sort=${sort}&limit=${limit}&offset=${offset}`,
+      `/api/gsc/properties/${id}/opportunities/striking-distance?${qs(r, { segment, sort, limit, offset })}`,
     ),
-  cannibalisation: (id: number, days: number, segment: QuerySegment, limit = 100, offset = 0) =>
+  cannibalisation: (id: number, r: DateRange, segment: QuerySegment, limit = 100, offset = 0) =>
     request<CannibalResponse>(
-      `/api/gsc/properties/${id}/opportunities/cannibalisation?days=${days}&segment=${segment}&limit=${limit}&offset=${offset}`,
+      `/api/gsc/properties/${id}/opportunities/cannibalisation?${qs(r, { segment, limit, offset })}`,
     ),
   indexing: (id: number) => request<IndexingSummary>(`/api/gsc/properties/${id}/indexing`),
   startInspection: (id: number) =>

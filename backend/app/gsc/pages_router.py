@@ -7,9 +7,9 @@ from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.gsc import brand, google_api, indexing, keywords, opportunities, pages, seasonal, sync
+from app.gsc import brand, google_api, indexing, keywords, opportunities, pages, seasonal
 from app.gsc.indexing_router import AdviceOut, _advice
-from app.gsc.router import Compare, DailyPoint, Totals, _window, comparison_window
+from app.gsc.router import Compare, DailyPoint, PeriodDep, Totals
 from app.models import (
     GscDailyMetric,
     GscIndexingExport,
@@ -68,6 +68,8 @@ class PagesOut(BaseModel):
     start_date: date
     end_date: date
     compare: Compare
+    compare_start: date | None  # the comparison window, when stored history covers it
+    compare_end: date | None
     compare_available: bool  # needed for lost / rising / declining
     new_available: bool  # needed for new
     definitions: Definitions
@@ -81,8 +83,7 @@ class PagesOut(BaseModel):
 def page_report(
     property_id: int,
     db: DbDep,
-    days: Annotated[int, Query(ge=1, le=sync.MAX_HISTORY_DAYS)] = 28,
-    compare: Compare = "previous",
+    period: PeriodDep,
     page_types: Annotated[list[pages.PageType] | None, Query(alias="type", description="Page types; any of")] = None,
     filters: Annotated[list[pages.PageFilter] | None, Query(alias="filter", description="Combined with AND")] = None,
     search: Annotated[str | None, Query(max_length=200)] = None,
@@ -96,10 +97,9 @@ def page_report(
     if not prop:
         raise HTTPException(404, "Property not found")
 
-    start, end = _window(db, prop.id, days)
-    compare_start, compare_end = comparison_window(start, end, compare)
+    start, end, days = period.start, period.end, period.days
     first_stored = db.scalar(select(func.min(GscDailyMetric.date)).where(GscDailyMetric.property_id == prop.id))
-    win = keywords.window_for(start, end, compare_start, compare_end, first_stored)
+    win = keywords.window_for(start, end, period.compare_start, period.compare_end, first_stored)
 
     rows = pages.page_rows(db, prop.id, win, days)
     counts, total, items = pages.explore(
@@ -115,7 +115,9 @@ def page_report(
     return PagesOut(
         start_date=start,
         end_date=end,
-        compare=compare,
+        compare=period.compare,
+        compare_start=win.compare_start,
+        compare_end=win.compare_end,
         compare_available=win.compare_start is not None,
         new_available=win.lookback_start is not None,
         definitions=Definitions(
@@ -175,8 +177,8 @@ class PageDetailOut(BaseModel):
     start_date: date
     end_date: date
     compare: Compare
-    compare_start: date
-    compare_end: date
+    compare_start: date | None  # null when compare=none
+    compare_end: date | None
     totals: Totals
     previous_totals: Totals | None  # null when stored history doesn't cover the comparison window
     daily: list[DailyPoint]
@@ -293,8 +295,7 @@ def page_detail(
     property_id: int,
     db: DbDep,
     url: Annotated[str, Query(min_length=1, max_length=2000)],
-    days: Annotated[int, Query(ge=1, le=sync.MAX_HISTORY_DAYS)] = 28,
-    compare: Compare = "previous",
+    period: PeriodDep,
 ):
     """One page: totals and daily series vs the comparison window, its keywords, its indexing status."""
     prop = db.get(GscProperty, property_id)
@@ -303,8 +304,8 @@ def page_detail(
     if not db.scalar(select(GscPageMetric.id).where(GscPageMetric.property_id == prop.id, GscPageMetric.page == url).limit(1)):
         raise HTTPException(404, "This page isn't in the client's search data")
 
-    start, end = _window(db, prop.id, days)
-    compare_start, compare_end = comparison_window(start, end, compare)
+    start, end, days = period.start, period.end, period.days
+    compare_start, compare_end = period.compare_start, period.compare_end
     first_stored = db.scalar(select(func.min(GscDailyMetric.date)).where(GscDailyMetric.property_id == prop.id))
     win = keywords.window_for(start, end, compare_start, compare_end, first_stored)
     has_compare = win.compare_start is not None
@@ -328,7 +329,7 @@ def page_detail(
         expected_ctr=row.get("expected_ctr"),
         start_date=start,
         end_date=end,
-        compare=compare,
+        compare=period.compare,
         compare_start=compare_start,
         compare_end=compare_end,
         totals=_totals(row.get("clicks"), row.get("impressions"), row.get("position")),

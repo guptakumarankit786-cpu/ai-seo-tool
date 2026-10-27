@@ -1,14 +1,14 @@
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.gsc import brand, sync
-from app.gsc.router import Compare, Totals, _totals, _window, comparison_window, has_history
+from app.gsc import brand
+from app.gsc.router import PeriodDep, Totals, _totals, has_history
 from app.models import GscProperty, GscQueryMetric
 
 router = APIRouter(prefix="/api/gsc/properties/{property_id}", tags=["gsc-brand"])
@@ -112,14 +112,13 @@ def _to_totals(clicks: int, impressions: int, weighted_pos: float) -> Totals:
 def segments(
     property_id: int,
     db: DbDep,
-    days: Annotated[int, Query(ge=1, le=sync.MAX_HISTORY_DAYS)] = 28,
-    compare: Compare = "previous",
+    period: PeriodDep,
 ):
     """Brand vs non-brand totals (with comparison period) and daily split, from query-level data."""
     prop = _property(db, property_id)
     terms = brand.effective_terms(prop.brand_terms, prop.site_url)
-    start, end = _window(db, prop.id, days)
-    compare_start, compare_end = comparison_window(start, end, compare)
+    start, end = period.start, period.end
+    compare_start, compare_end = period.compare_start, period.compare_end
 
     is_brand = case((brand.brand_condition(GscQueryMetric.query_norm, terms), True), else_=False)
 
@@ -142,7 +141,7 @@ def segments(
 
     # Two separate scans: for year-over-year the windows are a year apart.
     rows = [(0, *r) for r in grouped(start, end)]
-    if has_history(db, prop.id, compare_start):
+    if compare_start is not None and has_history(db, prop.id, compare_start):
         rows += [(1, *r) for r in grouped(compare_start, compare_end)]
 
     # [current, comparison] accumulators per segment: clicks, impressions, weighted position

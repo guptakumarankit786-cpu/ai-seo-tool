@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
 import { PropertyTabs } from "@/components/property-tabs";
-import { COMPARE_LABEL, RangeControls } from "@/components/range-controls";
+import { COMPARE_LABEL, DateBar, periodText, useDateRange } from "@/components/range-controls";
 import { Badge, Banner, Button, Card } from "@/components/ui";
 import {
   api,
@@ -73,9 +73,8 @@ function describe(f: PageFilter, d: PageReport["definitions"], compare: Compare)
 export function PagesView({ params }: { params: Promise<{ propertyId: string }> }) {
   const id = Number(use(params).propertyId);
   const [property, setProperty] = useState<Property | null>(null);
+  const [range] = useDateRange();
   const [q, setQ] = useState<PageQuery>({
-    days: 28,
-    compare: "previous",
     types: [],
     filters: [],
     search: "",
@@ -90,12 +89,17 @@ export function PagesView({ params }: { params: Promise<{ propertyId: string }> 
   const [rows, setRows] = useState<PageRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   // Loading = the filters on screen differ from the ones the last finished request used.
-  const requestKey = JSON.stringify(q);
+  const requestKey = JSON.stringify([q, range]);
   const [doneKey, setDoneKey] = useState<string | null>(null);
   const loading = doneKey !== requestKey;
 
-  // Any filter change starts from the first page.
+  // Any filter change starts from the first page — a new date range too.
   const update = (patch: Partial<PageQuery>) => setQ((prev) => ({ ...prev, offset: 0, ...patch }));
+  const [seenRange, setSeenRange] = useState(range);
+  if (seenRange !== range) {
+    setSeenRange(range);
+    if (q.offset) setQ((prev) => ({ ...prev, offset: 0 }));
+  }
 
   useEffect(() => {
     api.property(id).then(setProperty).catch((e: Error) => setError(e.message));
@@ -110,7 +114,7 @@ export function PagesView({ params }: { params: Promise<{ propertyId: string }> 
   useEffect(() => {
     let cancelled = false;
     api
-      .pageReport(id, q)
+      .pageReport(id, range, q)
       .then((res) => {
         if (cancelled) return;
         setData(res);
@@ -118,11 +122,11 @@ export function PagesView({ params }: { params: Promise<{ propertyId: string }> 
         setError(null);
       })
       .catch((e: Error) => !cancelled && setError(e.message))
-      .finally(() => !cancelled && setDoneKey(JSON.stringify(q)));
+      .finally(() => !cancelled && setDoneKey(JSON.stringify([q, range])));
     return () => {
       cancelled = true;
     };
-  }, [id, q]);
+  }, [id, q, range]);
 
   if (!property) return error ? <Banner tone="error">{error}</Banner> : <p className="text-sm text-muted">Loading…</p>;
 
@@ -145,10 +149,12 @@ export function PagesView({ params }: { params: Promise<{ propertyId: string }> 
         </div>
         {data && (
           <p className="mt-1 text-sm text-muted">
-            {fmt.date(data.start_date)} – {fmt.date(data.end_date)} · every page Google showed in search for this period
+            {periodText(data)} · every page Google showed in search for this period
           </p>
         )}
       </header>
+
+      <DateBar />
 
       <PropertyTabs propertyId={id} active="pages" />
 
@@ -168,15 +174,17 @@ export function PagesView({ params }: { params: Promise<{ propertyId: string }> 
         ))}
       </div>
 
-      {view === "decay" && <DecayPanel propertyId={id} />}
+      {view === "decay" && (
+        <>
+          <p className="text-sm text-muted">Content decay ignores the date range: it compares the last full months of stored history.</p>
+          <DecayPanel
+            property={property}
+            onSynced={() => api.property(id).then(setProperty).catch(() => {})}
+          />
+        </>
+      )}
 
       <div className={view === "all" ? "space-y-6" : "hidden"}>
-        <RangeControls
-          days={q.days}
-          onDays={(days) => update({ days })}
-          compare={q.compare}
-          onCompare={(compare) => update({ compare })}
-        />
 
         {data && data.groups.length > 0 && (
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4" role="group" aria-label="Page types">
@@ -184,7 +192,7 @@ export function PagesView({ params }: { params: Promise<{ propertyId: string }> 
               <TypeCard
                 key={g.type}
                 group={g}
-                compare={q.compare}
+                compare={data.compare}
                 selected={selectedType === g.type}
                 onClick={() => update({ types: selectedType === g.type ? [] : [g.type] })}
               />
@@ -204,7 +212,13 @@ export function PagesView({ params }: { params: Promise<{ propertyId: string }> 
                     onClick={() => toggleFilter(f)}
                     disabled={unavailable && !active}
                     aria-pressed={active}
-                    title={unavailable ? "Not enough history for this date range" : describe(f, data.definitions, q.compare)}
+                    title={
+                    !unavailable
+                      ? describe(f, data.definitions, data.compare)
+                      : data.compare === "none" && NEEDS_COMPARE.includes(f)
+                        ? "Choose a comparison above to use this"
+                        : "Not enough history for this date range"
+                  }
                     className={`rounded-full border px-3 py-1 text-sm transition disabled:cursor-not-allowed disabled:opacity-40 ${
                       active ? "border-accent bg-accent-soft text-accent" : "border-border hover:bg-accent-soft"
                     }`}
@@ -232,7 +246,7 @@ export function PagesView({ params }: { params: Promise<{ propertyId: string }> 
                 )}
                 {q.filters.map((f) => (
                   <li key={f}>
-                    <b className="font-medium text-foreground">{FILTER_LABEL[f]}:</b> {describe(f, data.definitions, q.compare)}
+                    <b className="font-medium text-foreground">{FILTER_LABEL[f]}:</b> {describe(f, data.definitions, data.compare)}
                   </li>
                 ))}
                 {q.filters.length > 1 && <li>Pages must match all selected filters.</li>}
@@ -284,7 +298,7 @@ export function PagesView({ params }: { params: Promise<{ propertyId: string }> 
                       key={r.page}
                       row={r}
                       compareAvailable={!!data?.compare_available}
-                      detailHref={`/gsc/${id}/pages/detail?${new URLSearchParams({ url: r.page, days: String(q.days), compare: q.compare })}`}
+                      detailHref={`/gsc/${id}/pages/detail?${new URLSearchParams({ url: r.page })}`}
                     />
                   ))}
                 </tbody>
