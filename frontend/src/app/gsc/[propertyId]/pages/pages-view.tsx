@@ -7,6 +7,7 @@ import { ClientToolbar } from "@/components/client-toolbar";
 import { COMPARE_LABEL, periodText, useDateRange } from "@/components/range-controls";
 import { Badge, Banner, Button, Card } from "@/components/ui";
 import {
+  type Ga4Summary,
   api,
   fmt,
   propertyLabel,
@@ -259,6 +260,7 @@ export function PagesView({ params }: { params: Promise<{ propertyId: string }> 
         {error && <Banner tone="error">{error}</Banner>}
 
         <Card className="overflow-hidden">
+          {data && <Ga4Note ga4={data.ga4} error={data.ga4_error} />}
           <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-4 pb-3">
             <h2 className="text-sm font-medium">
               {data ? `${fmt.int(data.total)} pages` : "Pages"}
@@ -291,6 +293,14 @@ export function PagesView({ params }: { params: Promise<{ propertyId: string }> 
                     <SortHeader label="Impr." sort="impressions" q={q} onSort={sortBy} className="w-24 px-2 text-right" />
                     <SortHeader label="CTR" sort="ctr" q={q} onSort={sortBy} className="hidden w-20 px-2 text-right sm:table-cell" />
                     <SortHeader label="Pos." sort="position" q={q} onSort={sortBy} className="w-16 px-4 text-right" />
+                    {data?.ga4 && (
+                      <>
+                        <SortHeader label="Sessions" sort="sessions" q={q} onSort={sortBy} className="hidden w-20 px-2 text-right lg:table-cell" />
+                        <SortHeader label="Key ev." sort="key_events" q={q} onSort={sortBy} className="hidden w-16 px-2 text-right xl:table-cell" />
+                        <SortHeader label="Orders" sort="orders" q={q} onSort={sortBy} className="hidden w-16 px-2 text-right lg:table-cell" />
+                        <SortHeader label="Revenue" sort="revenue" q={q} onSort={sortBy} className="hidden w-24 px-4 text-right lg:table-cell" />
+                      </>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="tabular-nums">
@@ -299,6 +309,7 @@ export function PagesView({ params }: { params: Promise<{ propertyId: string }> 
                       key={r.page}
                       row={r}
                       compareAvailable={!!data?.compare_available}
+                      ga4={data?.ga4 ?? null}
                       detailHref={`/gsc/${id}/pages/detail?${new URLSearchParams({ url: r.page })}`}
                     />
                   ))}
@@ -393,7 +404,46 @@ function SortHeader({
   );
 }
 
-function PageTableRow({ row, compareAvailable, detailHref }: { row: PageRow; compareAvailable: boolean; detailHref: string }) {
+/** One line above the table: the linked GA4 property's Google-organic totals, or why there are none. */
+function Ga4Note({ ga4, error }: { ga4: Ga4Summary | null; error: string | null }) {
+  if (error) return <p className="border-b border-border px-4 py-2 text-xs text-negative">{error}</p>;
+  if (!ga4)
+    return (
+      <p className="border-b border-border px-4 py-2 text-xs text-muted">
+        No GA4 property linked, so there are no sessions or revenue.{" "}
+        <Link href="/integrations" className="text-accent hover:underline">
+          Pick one on Integrations
+        </Link>
+      </p>
+    );
+  const unmatched = ga4.sessions ? ga4.unmatched_sessions / ga4.sessions : 0;
+  return (
+    <p className="border-b border-border px-4 py-2 text-xs text-muted">
+      <span className="font-medium text-foreground">GA4 · {ga4.name}</span> — Google organic: {fmt.int(ga4.sessions)} sessions ·{" "}
+      {fmt.int(ga4.orders)} orders · {fmt.int(ga4.key_events)} key events ·{" "}
+      {ga4.revenue_tracked ? `${fmt.money(ga4.revenue, ga4.currency)} revenue` : "revenue not tracked (orders have no value in GA4)"}.
+      {unmatched >= 0.05 && (
+        <span className="text-warning">
+          {" "}
+          {Math.round(unmatched * 100)}% of these sessions have a landing page that isn&apos;t a real page (often Shopify&apos;s
+          pixel tracking), so page numbers add up to less.
+        </span>
+      )}
+    </p>
+  );
+}
+
+function PageTableRow({
+  row,
+  compareAvailable,
+  ga4,
+  detailHref,
+}: {
+  row: PageRow;
+  compareAvailable: boolean;
+  ga4: Ga4Summary | null;
+  detailHref: string;
+}) {
   const change = row.click_change;
   const path = row.page.replace(/^https?:\/\/[^/]+/, "") || "/";
   return (
@@ -438,6 +488,16 @@ function PageTableRow({ row, compareAvailable, detailHref }: { row: PageRow; com
         )}
       </td>
       <td className="px-4 py-2 text-right">{row.position == null ? "—" : fmt.pos(row.position)}</td>
+      {ga4 && (
+        <>
+          <td className="hidden px-2 py-2 text-right lg:table-cell">{row.sessions == null ? "—" : fmt.int(row.sessions)}</td>
+          <td className="hidden px-2 py-2 text-right xl:table-cell">{row.key_events == null ? "—" : fmt.int(row.key_events)}</td>
+          <td className="hidden px-2 py-2 text-right lg:table-cell">{row.orders == null ? "—" : fmt.int(row.orders)}</td>
+          <td className="hidden px-4 py-2 text-right lg:table-cell" title={ga4.revenue_tracked ? undefined : "Revenue isn't tracked in GA4"}>
+            {row.revenue == null || !ga4.revenue_tracked ? "—" : fmt.money(row.revenue, ga4.currency)}
+          </td>
+        </>
+      )}
     </tr>
   );
 }

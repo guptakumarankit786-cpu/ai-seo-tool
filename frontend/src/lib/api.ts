@@ -199,7 +199,21 @@ export type PageFilter =
   | "lost"
   | "zero_clicks"
   | "striking";
-export type PageSort = "clicks" | "impressions" | "ctr" | "position" | "click_change" | "page";
+export type PageSort = "clicks" | "impressions" | "ctr" | "position" | "click_change" | "page" | Ga4Field;
+
+export type Ga4Field = "sessions" | "key_events" | "orders" | "revenue";
+
+/** GA4 Google-organic totals for the site's linked GA4 property over the report's range. */
+export type Ga4Summary = {
+  name: string;
+  currency: string | null;
+  sessions: number;
+  key_events: number;
+  orders: number;
+  revenue: number;
+  revenue_tracked: boolean; // false when GA4 counts orders but no order value
+  unmatched_sessions: number; // landed on pages GA4 couldn't tie to a page
+};
 
 export type PageRow = {
   page: string;
@@ -214,6 +228,11 @@ export type PageRow = {
   click_change: number;
   expected_ctr: number | null;
   flags: PageFilter[];
+  // GA4 Google organic; null without a GA4 link and on Shopping `?` rows
+  sessions: number | null;
+  key_events: number | null;
+  orders: number | null;
+  revenue: number | null;
 };
 
 export type PageGroup = {
@@ -252,6 +271,8 @@ export type PageReport = {
   counts: Record<string, number>;
   total: number;
   items: PageRow[];
+  ga4: Ga4Summary | null;
+  ga4_error: string | null;
 };
 
 export type PageKeyword = {
@@ -283,6 +304,9 @@ export type PageDetail = Omit<Summary, "site_url"> & {
     advice: Advice | null;
   } | null;
   export_issues: { issue: string; uploaded_at: string; last_crawled: string | null; advice: Advice }[];
+  ga4: Ga4Summary | null;
+  ga4_page: Record<Ga4Field, number | null> | null;
+  ga4_error: string | null;
 };
 
 export type DecayCause = "ranking" | "demand" | "ctr" | "sudden" | "mixed";
@@ -604,6 +628,10 @@ export const fmt = {
   int: (n: number) => n.toLocaleString("en-US"),
   pct: (n: number) => `${(n * 100).toFixed(2)}%`,
   pos: (n: number) => n.toFixed(1),
+  money: (n: number, currency: string | null) =>
+    currency
+      ? n.toLocaleString("en-US", { style: "currency", currency, maximumFractionDigits: 0 })
+      : Math.round(n).toLocaleString("en-US"),
   /** "Oct 12", or "Jun 14, 2025" when not in the current year. */
   date: (iso: string) => {
     const d = new Date(iso + (iso.length === 10 ? "T00:00:00" : ""));

@@ -222,3 +222,22 @@ def ga4_sessions(access_token: str, property_name: str, days: int = 28) -> int:
     _raise_for_status(resp)
     rows = resp.json().get("rows", [])
     return int(rows[0]["metricValues"][0]["value"]) if rows else 0
+
+
+def ga4_run_report(access_token: str, property_name: str, body: dict) -> dict:
+    """GA4 runReport, paging through every row: {"rows": [...], "totals": [...] | None, "currency": "INR"}.
+    Totals come back only when the body asks for metricAggregations=["TOTAL"]."""
+    rows: list[dict] = []
+    totals = None
+    offset, limit = 0, 100_000
+    with httpx.Client(headers={"Authorization": f"Bearer {access_token}"}, timeout=120) as client:
+        while True:
+            resp = client.post(f"{GA4_DATA}/{property_name}:runReport", json={**body, "limit": limit, "offset": offset})
+            _raise_for_status(resp)
+            data = resp.json()
+            rows.extend(data.get("rows", []))
+            if totals is None and data.get("totals"):
+                totals = [float(m["value"]) for m in data["totals"][0]["metricValues"]]
+            offset += limit
+            if offset >= data.get("rowCount", 0):
+                return {"rows": rows, "totals": totals, "currency": data.get("metadata", {}).get("currencyCode")}

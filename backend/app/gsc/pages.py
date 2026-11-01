@@ -19,7 +19,8 @@ PageType = Literal["home", "collections", "products", "blogs", "pages", "other",
 PAGE_TYPES: tuple[str, ...] = get_args(PageType)
 PageFilter = Literal["low_ctr", "high_performance", "rising", "declining", "new", "lost", "zero_clicks", "striking"]
 PAGE_FILTERS: tuple[str, ...] = get_args(PageFilter)
-SortKey = Literal["clicks", "impressions", "ctr", "position", "click_change", "page"]
+# sessions..revenue: GA4 Google-organic numbers, when the site has a linked GA4 property.
+SortKey = Literal["clicks", "impressions", "ctr", "position", "click_change", "page", "sessions", "key_events", "orders", "revenue"]
 
 # First path segment → page type. Shopify first; common WordPress / WooCommerce names too.
 _SEGMENT_TYPES = {
@@ -228,8 +229,8 @@ def explore(
     counts = {"all": len(scoped)} | {f: sum(1 for p in matches if f in p["flags"]) for f in PAGE_FILTERS}
 
     def key(p: dict):
-        value = p[sort]
-        if value is None:  # lost pages have no position; keep them last either way
+        value = p.get(sort)
+        if value is None:  # lost pages have no position, Shopping rows no GA4: keep them last either way
             return (1, 0)
         return (0, -value if descending and sort != "page" else value)
 

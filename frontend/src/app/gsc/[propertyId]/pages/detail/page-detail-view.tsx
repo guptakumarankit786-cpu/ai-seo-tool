@@ -103,6 +103,8 @@ export function PageDetailView({ params }: { params: Promise<{ propertyId: strin
             <Kpi label="Avg. position" metric="position" summary={data} lowerIsBetter />
           </div>
 
+          <Ga4Card data={data} />
+
           <Card className="p-4">
             <h2 className="mb-3 text-sm font-medium">Clicks and impressions</h2>
             {data.daily.length ? (
@@ -119,6 +121,41 @@ export function PageDetailView({ params }: { params: Promise<{ propertyId: strin
         </>
       )}
     </div>
+  );
+}
+
+/** GA4 Google-organic sessions, orders, key events and revenue for visits landing on this page. */
+function Ga4Card({ data }: { data: PageDetail }) {
+  const { ga4, ga4_page: page } = data;
+  if (data.ga4_error) return <p className="text-xs text-negative">{data.ga4_error}</p>;
+  if (!ga4 || !page)
+    return (
+      <p className="text-xs text-muted">
+        {data.page.includes("?")
+          ? "GA4 numbers aren't shown for Shopping listing URLs."
+          : "No GA4 property linked for this client, so no sessions or revenue."}
+      </p>
+    );
+  const items: [string, string][] = [
+    ["Sessions", fmt.int(page.sessions ?? 0)],
+    ["Orders", fmt.int(page.orders ?? 0)],
+    ["Key events", fmt.int(page.key_events ?? 0)],
+    ["Revenue", ga4.revenue_tracked ? fmt.money(page.revenue ?? 0, ga4.currency) : "Not tracked"],
+  ];
+  return (
+    <Card className="p-4">
+      <h2 className="text-sm font-medium">
+        GA4 · Google organic visits landing here <span className="font-normal text-muted">· {ga4.name}</span>
+      </h2>
+      <dl className="mt-3 grid grid-cols-2 gap-3 tabular-nums md:grid-cols-4">
+        {items.map(([label, value]) => (
+          <div key={label}>
+            <dt className="text-xs text-muted">{label}</dt>
+            <dd className="text-xl font-semibold">{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </Card>
   );
 }
 

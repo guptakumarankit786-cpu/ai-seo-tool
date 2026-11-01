@@ -2,6 +2,19 @@
 
 Decisions and learned facts, newest first. Add an entry whenever something is decided or discovered that isn't obvious from the code. **No client names or client data** — the repo is public.
 
+## 2026-11-02
+
+**Decisions**
+- GA4 on pages (user chose): **Google organic only** (source = google, like-for-like with Search Console), show **both** orders (purchases) and key events plus revenue, on the **Pages tab + page detail** (not a separate tab). Read live from GA4, cached 1 h; no GA4 comparison yet.
+- GA4 naming differs from Search Console (user asked to handle it): no website match → match by the site's domain, else brand, in the GA4 property / account name. Linked 37 of 40 sites, all 7 with data.
+
+**Facts learned**
+- Joining GA4 `hostName` + `landingPage` to Search Console pages by host + path covers 88–100% of Search Console clicks.
+- On one large Shopify store **~47% of Google organic sessions land on `/web-pixels@…/sandbox/modern`** — GA4 sent from Shopify's custom-pixel sandbox records the sandbox URL, not the page. Orders and revenue still count in totals, so page numbers add up to less; shown as a warning.
+- GA4 sessions summed over landing pages exceed the real total (~0.5%); use `metricAggregations: TOTAL` for site totals — it matches GA4 exactly (orders, key events and revenue match either way).
+- Bing, DuckDuckGo, so.com etc. are ~3% of GA4 "Organic Search" on a large store.
+- One client's key events were ~8× its sessions (misconfigured) and its revenue 0 with ~400 orders — key events and revenue need per-client sanity checks.
+
 ## 2026-11-01
 
 **Decisions**

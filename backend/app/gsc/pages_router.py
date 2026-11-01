@@ -7,7 +7,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.gsc import brand, google_api, indexing, keywords, opportunities, pages, seasonal
+from app.gsc import brand, ga4, google_api, indexing, keywords, opportunities, pages, seasonal
 from app.gsc.indexing_router import AdviceOut, _advice
 from app.gsc.router import Compare, DailyPoint, PeriodDep, Totals
 from app.models import (
@@ -37,6 +37,22 @@ class PageRow(BaseModel):
     click_change: int
     expected_ctr: float | None  # site's typical page CTR at this position
     flags: list[pages.PageFilter]
+    # GA4, Google organic landing on this page; null without a GA4 link and on Shopping `?` rows.
+    sessions: int | None = None
+    key_events: int | None = None
+    orders: int | None = None
+    revenue: float | None = None
+
+
+class Ga4Summary(BaseModel):
+    name: str  # GA4 property name
+    currency: str | None
+    sessions: int
+    key_events: int
+    orders: int
+    revenue: float
+    revenue_tracked: bool  # false when GA4 counts orders but no order value
+    unmatched_sessions: int  # sessions on landing pages that aren't any of these pages
 
 
 class PageGroup(BaseModel):
@@ -77,6 +93,17 @@ class PagesOut(BaseModel):
     counts: dict[str, int]
     total: int
     items: list[PageRow]
+    ga4: Ga4Summary | None  # null when the site has no GA4 property linked (or GA4 failed)
+    ga4_error: str | None
+
+
+def _with_ga4(db: Session, prop: GscProperty, rows: list[dict], start: date, end: date) -> tuple[Ga4Summary | None, str | None]:
+    """Attach GA4 numbers to page rows; a GA4 failure leaves the Search Console report working."""
+    try:
+        report = ga4.organic_landing_pages(db, prop, start, end)
+    except google_api.GoogleAPIError as exc:
+        return None, f"Couldn't read GA4: {exc}"[:300]
+    return (Ga4Summary(**ga4.attach(rows, report)) if report else None), None
 
 
 @router.get("/page-report", response_model=PagesOut)
@@ -102,6 +129,7 @@ def page_report(
     win = keywords.window_for(start, end, period.compare_start, period.compare_end, first_stored)
 
     rows = pages.page_rows(db, prop.id, win, days)
+    ga4_summary, ga4_error = _with_ga4(db, prop, rows, start, end)
     counts, total, items = pages.explore(
         rows,
         list(dict.fromkeys(page_types or [])),
@@ -135,6 +163,8 @@ def page_report(
         counts=counts,
         total=total,
         items=[PageRow(**i) for i in items],
+        ga4=ga4_summary,
+        ga4_error=ga4_error,
     )
 
 
@@ -189,6 +219,9 @@ class PageDetailOut(BaseModel):
     keywords: list[PageKeyword]
     inspection: PageInspection | None  # null until the page is inspected
     export_issues: list[ExportIssue]  # uploaded Search Console URL lists that include this page
+    ga4: Ga4Summary | None  # site totals (name, currency, tracking) — this page's numbers are in ga4_page
+    ga4_page: dict[str, float | None] | None  # sessions, key_events, orders, revenue for this page
+    ga4_error: str | None
 
 
 def _page_daily(db: Session, property_id: int, page: str, start: date, end: date) -> list[DailyPoint]:
@@ -309,7 +342,9 @@ def page_detail(
     first_stored = db.scalar(select(func.min(GscDailyMetric.date)).where(GscDailyMetric.property_id == prop.id))
     win = keywords.window_for(start, end, compare_start, compare_end, first_stored)
     has_compare = win.compare_start is not None
-    row = next((r for r in pages.page_rows(db, prop.id, win, days) if r["page"] == url), None) or {}
+    rows = pages.page_rows(db, prop.id, win, days)
+    ga4_summary, ga4_error = _with_ga4(db, prop, rows, start, end)
+    row = next((r for r in rows if r["page"] == url), None) or {}
 
     keywords_available = days <= opportunities.MAX_DAYS
     page_keywords: list[PageKeyword] = []
@@ -343,6 +378,9 @@ def page_detail(
         keywords=page_keywords,
         inspection=_inspection(db, prop.id, url),
         export_issues=_export_issues(db, prop.id, url),
+        ga4=ga4_summary,
+        ga4_page={f: row.get(f) for f in ga4.FIELDS} if ga4_summary else None,
+        ga4_error=ga4_error,
     )
 
 

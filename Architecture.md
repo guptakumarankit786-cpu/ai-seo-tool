@@ -34,7 +34,8 @@ backend/app/
   models.py            all tables
   gsc/
     google_api.py      thin wrappers: OAuth, sites, searchAnalytics, sitemaps, URL Inspection, GA4 properties + sessions
-    ga4.py             GA4 property list per connection + matching each Search Console site to one
+    ga4.py             GA4 property list per connection, matching each Search Console site to one,
+                       Google-organic landing pages (cached 1 h) joined to Search Console pages
     router.py          /api/gsc/... connections, OAuth, sync, performance reports
     sync.py            property discovery + performance sync job
     nightly.py         nightly "Latest days" sync loop for properties with data
@@ -84,7 +85,9 @@ Deleting a connection cascades to everything below it. Schema changes go through
 
 **Performance sync** — `POST /properties/{id}/sync` with `{"mode": "range", "days": 90|180|486}` or `{"mode": "latest"}` creates a run and returns 202. The range ends 3 days ago (Google data lag); `latest` starts 3 days before the newest stored day (Google may revise recent days). A background task splits the range into **30-day chunks, newest first**; for each chunk it pulls `date`, `date+query`, `date+page` (paged by 25k rows), **replaces** that chunk and commits, updating `chunks_done/chunks_total`. An interrupted run keeps finished chunks; re-running replaces them (idempotent). Full 16 months on a large site: ~2.8M rows in ~12 min.
 
-**GA4 link** — the OAuth callback and `POST /connections/{id}/refresh-properties` also call `ga4.refresh_properties` when the connection granted `analytics.readonly`: `accountSummaries` (paged) + one `dataStreams` call per property (8 threads; ~30 s for 60 properties) mirror `ga4_properties`, then `match_all` links every non-manual Search Console property by host (`site_host`: scheme, `www.`, path removed). Several candidates → `runReport` sessions for the last 28 days, highest wins, newest property id on a tie (unreadable = −1). `PUT /properties/{id}/ga4` with `{"ga4_property_id": n|null}` sets a manual link, `{"auto": true}` re-matches just that property. `/status` returns `ga4_properties` and each property's link.
+**GA4 link** — the OAuth callback and `POST /connections/{id}/refresh-properties` also call `ga4.refresh_properties` when the connection granted `analytics.readonly`: `accountSummaries` (paged) + one `dataStreams` call per property (8 threads; ~30 s for 60 properties) mirror `ga4_properties`, then `match_all` links every non-manual Search Console property by host (`site_host`: scheme, `www.`, path removed). Several candidates → `runReport` sessions for the last 28 days, highest wins, newest property id on a tie (unreadable = −1). `PUT /properties/{id}/ga4` with `{"ga4_property_id": n|null}` sets a manual link, `{"auto": true}` re-matches just that property. No website match → `by_name`: GA4 properties whose normalised name + account name contain the site's normalised host, else its brand term (`brand.suggest_terms`, 3+ letters).
+
+**GA4 on pages** — `page-report` and `page-detail` call `ga4.organic_landing_pages` (one `runReport`: `hostName` × `landingPage`, metrics `sessions, keyEvents, ecommercePurchases, purchaseRevenue`, filter channel group = Organic Search AND source = google, `metricAggregations: TOTAL`, paged 100k rows; cached in-process for 1 h per GA4 property + range, so filters and sorting don't call GA4 again). `ga4.attach` joins by `page_key` (host without `www.`, unquoted path, no trailing slash) onto clean page rows; http/https duplicates get the numbers once. Site totals use GA4's TOTAL (sessions don't add up exactly across landing pages); `unmatched_sessions` = total − matched pages. A GA4 error returns `ga4_error` and the Search Console report still works. `/status` returns `ga4_properties` and each property's link.
 
 **Clients list** — `GET /api/gsc/status` returns every property with its data range, latest sync run and indexing counts (`pages_inspected`, `last_inspected_at`, `export_uploaded_at` of the newest overview export). The frontend groups properties into brands by host (scheme, `www.` and path removed) and derives the status: data ending ≤ 1 day after the expected newest day (today − 3) is up to date.
 
@@ -155,4 +158,4 @@ Pages are thin server components wrapping client components in `<Suspense>` (req
 ```bash
 docker compose exec backend python -m pytest -q
 ```
-260 tests: OAuth, encryption, sync, reports maths, inspection discovery/quota/ordering, export parsing, advice, brand matching/segments, chunked/latest sync, comparisons, keyword types/filters/cache, striking distance / cannibalisation / live cache, seasonal / spikes / competitors, low-CTR pages, nightly sync, GA4 matching, endpoints. Frontend: typecheck + lint; verified manually in the browser.
+267 tests: OAuth, encryption, sync, reports maths, inspection discovery/quota/ordering, export parsing, advice, brand matching/segments, chunked/latest sync, comparisons, keyword types/filters/cache, striking distance / cannibalisation / live cache, seasonal / spikes / competitors, low-CTR pages, nightly sync, GA4 matching, endpoints. Frontend: typecheck + lint; verified manually in the browser.

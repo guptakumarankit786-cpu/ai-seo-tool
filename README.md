@@ -45,7 +45,8 @@ docker compose exec backend python -m pytest -q
 | Indexing — "Why pages aren't indexed" via URL Inspection (sitemaps + search pages, 2,000/day quota) | ✅ |
 | Indexing — upload Search Console's Page indexing export (overview + per-reason URL lists) | ✅ |
 | Indexing — "worth fixing vs. safe to ignore" advice per reason | ✅ |
-| Google Analytics 4: read-only access, GA4 property matched to each client by website (editable) | ✅ |
+| Google Analytics 4: read-only access, GA4 property matched to each client by website or name (editable) | ✅ |
+| GA4 revenue per page: Google organic sessions, key events, orders and revenue on the Pages tab and page detail | ✅ |
 
 ## Branches
 
