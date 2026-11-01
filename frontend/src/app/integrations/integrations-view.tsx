@@ -109,13 +109,13 @@ export function IntegrationsView() {
       {result === "error" && <Banner tone="error">Couldn&apos;t connect Google: {params.get("reason")}</Banner>}
       {error && <Banner tone="error">{error}</Banner>}
 
-      {status && <Clients properties={properties} onChange={load} />}
+      {status && <Clients properties={properties} nightly={status.nightly_sync_time} onChange={load} />}
       {status && <Accounts status={status} onChange={load} onError={setError} />}
     </div>
   );
 }
 
-function Clients({ properties, onChange }: { properties: Property[]; onChange: () => void }) {
+function Clients({ properties, nightly, onChange }: { properties: Property[]; nightly: string | null; onChange: () => void }) {
   const [filter, setFilter] = useState<StatusKey | "all">("all");
   const [search, setSearch] = useState("");
   const brands = useMemo(() => groupBrands(properties), [properties]);
@@ -148,6 +148,13 @@ function Clients({ properties, onChange }: { properties: Property[]; onChange: (
           <p className="mt-0.5 text-xs text-muted">
             {brands.length} brands · {properties.length} Search Console properties
           </p>
+          {nightly && (
+            <p className="mt-0.5 text-xs text-muted">
+              Clients with data sync every night at{" "}
+              {new Date(`2000-01-01T${nightly}`).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} while
+              this computer is on; a missed night catches up when it&apos;s back.
+            </p>
+          )}
         </div>
         <input
           type="search"

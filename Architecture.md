@@ -35,6 +35,7 @@ backend/app/
     google_api.py      thin wrappers: OAuth, sites, searchAnalytics, sitemaps, URL Inspection
     router.py          /api/gsc/... connections, OAuth, sync, performance reports
     sync.py            property discovery + performance sync job
+    nightly.py         nightly "Latest days" sync loop for properties with data
     indexing.py        URL discovery (sitemaps + search pages) + inspection job
     indexing_router.py /api/gsc/properties/{id}/indexing/... inspection, export upload
     export_parser.py   Search Console Page-indexing export (ZIP/CSV) parser
@@ -109,7 +110,7 @@ Deleting a connection cascades to everything below it. Schema changes go through
 **Advice** — `advice.py` normalises Google's wording (quotes, dashes, case) and maps each reason to a verdict + action; reasons sorted worth-fixing first.
 
 ## 5. Background jobs
-FastAPI `BackgroundTasks` run inside the API process. On startup, any run still marked `running` is set to `failed: Interrupted by a server restart`.
+FastAPI `BackgroundTasks` run inside the API process. **Nightly sync:** `lifespan` starts `nightly.scheduler()`, which every 10 minutes syncs (sequentially, `run_sync` in a thread) each property that has stored data, nothing running, and no run started since the last `NIGHTLY_SYNC_TIME` in `TIMEZONE` (default 02:00 Asia/Kolkata). No extra table: due-ness comes from `gsc_sync_runs.started_at`, so missed nights catch up and a failed run waits for the next night. `NIGHTLY_SYNC_ENABLED=false` turns it off (tests do). On startup, any run still marked `running` is set to `failed: Interrupted by a server restart`.
 **Known limitation:** a running job blocks `uvicorn --reload` until it finishes (dev only). Planned: move jobs to a separate worker (see Task.md).
 
 ## 6. Frontend layout
@@ -143,10 +144,10 @@ Pages are thin server components wrapping client components in `<Suspense>` (req
 - No app login yet — run locally / on a trusted network only.
 
 ## 8. Configuration (`.env`)
-`BACKEND_URL`, `FRONTEND_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `TOKEN_ENCRYPTION_KEY`. Compose sets `DATABASE_URL`, and polling env vars because Windows bind mounts don't emit file events.
+`BACKEND_URL`, `FRONTEND_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `TOKEN_ENCRYPTION_KEY`, optional `NIGHTLY_SYNC_ENABLED` / `NIGHTLY_SYNC_TIME` / `TIMEZONE`. Compose sets `DATABASE_URL`, and polling env vars because Windows bind mounts don't emit file events.
 
 ## 9. Testing
 ```bash
 docker compose exec backend python -m pytest -q
 ```
-241 tests: OAuth, encryption, sync, reports maths, inspection discovery/quota/ordering, export parsing, advice, brand matching/segments, chunked/latest sync, comparisons, keyword types/filters/cache, striking distance / cannibalisation / live cache, seasonal / spikes / competitors, low-CTR pages, endpoints. Frontend: typecheck + lint; verified manually in the browser.
+247 tests: OAuth, encryption, sync, reports maths, inspection discovery/quota/ordering, export parsing, advice, brand matching/segments, chunked/latest sync, comparisons, keyword types/filters/cache, striking distance / cannibalisation / live cache, seasonal / spikes / competitors, low-CTR pages, endpoints. Frontend: typecheck + lint; verified manually in the browser.

@@ -10,7 +10,7 @@ Ideas captured for later. Nothing here is implemented unless marked ✅. Status:
 |---|------|--------|
 | 1 | **Manual sync** — user clicks "Sync" per property; pulls the last 90 days (daily totals, queries, pages). | ✅ Built |
 | 2 | **16 months of data** — choose 3 / 6 / 16 months; first run fetches full history, later runs only fetch new days; 90-day "vs previous period" and year-over-year work. | ✅ Built 2026-10-15 |
-| 3 | **Automatic pulls** — the app syncs on a schedule (e.g. daily, last few days only), building history beyond 16 months with no manual clicks. **Decided 2026-11-01:** nightly "Latest days" sync for clients that already have data (new clients still get their first sync by hand); runs only while this computer and Docker are on. | 🎯 Approved — next |
+| 3 | **Automatic pulls** — the app syncs on a schedule (e.g. daily, last few days only), building history beyond 16 months with no manual clicks. **Decided 2026-11-01:** nightly "Latest days" sync for clients that already have data (new clients still get their first sync by hand); runs only while this computer and Docker are on. | ✅ Built 2026-11-01 |
 
 ## Performance — keyword views (Top queries)
 

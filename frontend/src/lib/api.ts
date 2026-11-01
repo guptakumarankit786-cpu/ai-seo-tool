@@ -61,6 +61,7 @@ export type Connection = {
 
 export type GscStatus = {
   configured: boolean;
+  nightly_sync_time: string | null; // "02:00" local; null when off
   connections: Connection[];
 };
 

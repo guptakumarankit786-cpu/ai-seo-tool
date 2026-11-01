@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
@@ -9,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.db import SessionLocal
 from app.gsc.brand_router import router as gsc_brand_router
+from app.gsc import nightly
 from app.gsc.indexing_router import router as gsc_indexing_router
 from app.gsc.keywords_router import router as gsc_keywords_router
 from app.gsc.opportunities_router import router as gsc_opportunities_router
@@ -30,7 +32,10 @@ async def lifespan(_: FastAPI):
                 .values(status="failed", error="Interrupted by a server restart", finished_at=datetime.now(UTC))
             )
         db.commit()
+    task = asyncio.create_task(nightly.scheduler()) if get_settings().nightly_sync_enabled else None
     yield
+    if task:
+        task.cancel()
 
 
 app = FastAPI(title="AI SEO Tool API", lifespan=lifespan)

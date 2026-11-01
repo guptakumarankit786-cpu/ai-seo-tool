@@ -20,7 +20,7 @@ The agency manages many client sites (dozens of Search Console properties) from 
 ## 3. Principles
 
 1. **Feature by feature.** Ship one small, working slice at a time; test it on real data before moving on.
-2. **The user decides when heavy work runs.** Expensive actions (syncs, URL inspections) are triggered per client by the user — no automatic bulk jobs unless explicitly added later.
+2. **The user decides when heavy work runs.** Expensive actions (syncs, URL inspections) are triggered per client by the user — no automatic bulk jobs unless explicitly added later. Exception the user asked for: the **nightly "Latest days" sync** (§4.2).
 3. **Advice over raw data.** Every report should answer "is this worth fixing?" — not just list numbers.
 4. **Match Google's numbers.** Where we show Google data, it must equal what Google reports.
 5. **Read-only towards clients.** The tool only reads from Google; it never changes anything in Search Console.
@@ -35,6 +35,7 @@ The agency manages many client sites (dozens of Search Console properties) from 
 - Disconnect removes the account, its tokens and all synced data.
 
 ### 4.2 Performance ✅
+- **Nightly sync:** every night at 02:00 local (configurable) each client that already has data gets a "Latest days" sync, one after another (~10–15 min for all), so data is ready in the morning. A night the computer was off or asleep is caught up within 10 minutes of it being back on; a failed client waits for the next night. First (16-month) syncs stay manual. Shown on the Integrations page.
 - Manual sync per client, up to **16 months** of history (Google's maximum): choose *Latest days*, *3 months*, *6 months* or *Full 16 months*. Long syncs run month by month, newest first, with progress shown; *Latest days* only fetches days after what's stored.
 - Dashboard: clicks, impressions, CTR, average position, daily chart, top queries, top pages; ranges 7d / 28d / 3m / 6m / 12m / 16m.
 - **Period → Data → Explore** on every client page: a bar above the tabs with **1 Period** (below) and **2 Data from Google** (Sync range + Sync button + stored data range). If the period or its comparison reaches before the stored data, it says which sync fills it (or that Google's 16 months can't). A finished sync reloads every report. Then the tabs to explore.

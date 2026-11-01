@@ -70,6 +70,7 @@ class ConnectionOut(BaseModel):
 
 class StatusOut(BaseModel):
     configured: bool
+    nightly_sync_time: str | None  # local time clients with data sync every night; null when off
     connections: list[ConnectionOut]
 
 
@@ -300,6 +301,7 @@ def status(db: Session = Depends(get_db)):
     conns = db.scalars(select(GoogleConnection).order_by(GoogleConnection.created_at)).all()
     return StatusOut(
         configured=get_settings().google_configured,
+        nightly_sync_time=get_settings().nightly_sync_time if get_settings().nightly_sync_enabled else None,
         connections=[
             ConnectionOut(
                 id=c.id,

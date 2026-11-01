@@ -7,6 +7,7 @@ os.environ["DATABASE_URL"] = os.environ.get(
 os.environ["TOKEN_ENCRYPTION_KEY"] = __import__("cryptography.fernet").fernet.Fernet.generate_key().decode()
 os.environ["GOOGLE_CLIENT_ID"] = "test-client-id.apps.googleusercontent.com"
 os.environ["GOOGLE_CLIENT_SECRET"] = "test-client-secret"
+os.environ["NIGHTLY_SYNC_ENABLED"] = "false"
 
 from datetime import date, timedelta  # noqa: E402
 

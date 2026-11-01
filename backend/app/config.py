@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     # Fernet key used to encrypt OAuth tokens at rest
     token_encryption_key: str = ""
 
+    # Nightly "Latest days" sync for properties with data, at this local time
+    nightly_sync_enabled: bool = True
+    nightly_sync_time: str = "02:00"
+    timezone: str = "Asia/Kolkata"
+
     @property
     def google_redirect_uri(self) -> str:
         return f"{self.backend_url}/api/gsc/oauth/callback"
