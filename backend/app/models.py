@@ -65,9 +65,26 @@ class GscProperty(Base):
     brand_terms: Mapped[list[str] | None] = mapped_column(ARRAY(Text))
     # Competitor names; queries containing one are tagged "competitor". Null/empty = none set.
     competitor_terms: Mapped[list[str] | None] = mapped_column(ARRAY(Text))
+    # GA4 property for this site: matched by website address unless the user picked one (ga4_manual).
+    ga4_property_id: Mapped[int | None] = mapped_column(ForeignKey("ga4_properties.id", ondelete="SET NULL"))
+    ga4_manual: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     connection: Mapped[GoogleConnection] = relationship(back_populates="properties")
+
+
+class Ga4Property(Base):
+    """A GA4 property visible to a connection, with its web stream's website address."""
+
+    __tablename__ = "ga4_properties"
+    __table_args__ = (UniqueConstraint("connection_id", "property"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    connection_id: Mapped[int] = mapped_column(ForeignKey("google_connections.id", ondelete="CASCADE"))
+    property: Mapped[str] = mapped_column(String(64))  # "properties/123456"
+    display_name: Mapped[str] = mapped_column(String(255))
+    account_name: Mapped[str] = mapped_column(String(255))
+    website_url: Mapped[str | None] = mapped_column(Text)  # null when it has no web stream
 
 
 class GscSyncRun(Base):

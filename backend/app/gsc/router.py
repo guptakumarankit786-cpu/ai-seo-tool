@@ -13,8 +13,9 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.crypto import decrypt, encrypt
 from app.db import get_db
-from app.gsc import brand, google_api, keywords, pages, sync
+from app.gsc import brand, ga4, google_api, keywords, pages, sync
 from app.models import (
+    Ga4Property,
     GoogleConnection,
     GscDailyMetric,
     GscIndexingExport,
@@ -59,6 +60,23 @@ class PropertyOut(BaseModel):
     pages_inspected: int = 0
     last_inspected_at: datetime | None = None
     export_uploaded_at: datetime | None = None
+    # Linked GA4 property (id from StatusOut.ga4_properties); ga4_manual = picked by the user.
+    ga4_property_id: int | None = None
+    ga4_manual: bool = False
+
+
+class Ga4PropertyOut(BaseModel):
+    id: int
+    property: str
+    display_name: str
+    account_name: str
+    website_url: str | None
+
+
+class Ga4LinkIn(BaseModel):
+    # auto=true: go back to matching by website address; otherwise link ga4_property_id (null = none).
+    auto: bool = False
+    ga4_property_id: int | None = None
 
 
 class ConnectionOut(BaseModel):
@@ -73,6 +91,7 @@ class StatusOut(BaseModel):
     configured: bool
     nightly_sync_time: str | None  # local time clients with data sync every night; null when off
     connections: list[ConnectionOut]
+    ga4_properties: list[Ga4PropertyOut]
 
 
 class SyncIn(BaseModel):
@@ -182,6 +201,8 @@ def _property_out(db: Session, prop: GscProperty) -> PropertyOut:
         pages_inspected=pages_inspected,
         last_inspected_at=last_inspected_at,
         export_uploaded_at=export_uploaded_at,
+        ga4_property_id=prop.ga4_property_id,
+        ga4_manual=prop.ga4_manual,
     )
 
 
@@ -315,6 +336,10 @@ def status(db: Session = Depends(get_db)):
             )
             for c in conns
         ],
+        ga4_properties=[
+            Ga4PropertyOut.model_validate(g, from_attributes=True)
+            for g in db.scalars(select(Ga4Property).order_by(Ga4Property.account_name, Ga4Property.display_name))
+        ],
     )
 
 
@@ -373,6 +398,7 @@ def oauth_callback(
         db.refresh(conn)
 
         props = sync.refresh_properties(db, conn)
+        ga4.refresh_properties(db, conn)
     except google_api.GoogleAPIError as exc:
         return back(gsc="error", reason=str(exc)[:200])
 
@@ -399,9 +425,26 @@ def refresh_properties(connection_id: int, db: Session = Depends(get_db)):
         raise HTTPException(404, "Connection not found")
     try:
         props = sync.refresh_properties(db, conn)
+        ga4.refresh_properties(db, conn)
     except google_api.GoogleAPIError as exc:
         raise HTTPException(502, str(exc))
     return [_property_out(db, p) for p in props]
+
+
+@router.put("/properties/{property_id}/ga4", response_model=PropertyOut)
+def set_ga4(property_id: int, body: Ga4LinkIn, db: Session = Depends(get_db)):
+    prop = _get_property(db, property_id)
+    if body.auto:
+        prop.ga4_manual = False
+        db.commit()
+        ga4.match_all(db, prop.id)
+    else:
+        if body.ga4_property_id is not None and not db.get(Ga4Property, body.ga4_property_id):
+            raise HTTPException(404, "GA4 property not found")
+        prop.ga4_property_id, prop.ga4_manual = body.ga4_property_id, True
+        db.commit()
+    db.refresh(prop)
+    return _property_out(db, prop)
 
 
 # ---------- sync ----------

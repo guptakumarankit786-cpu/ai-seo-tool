@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge, Banner, Button, Card } from "@/components/ui";
 import { SyncControls } from "@/components/sync-controls";
 import { useSync } from "@/components/use-sync";
-import { api, fmt, propertyLabel, type GscStatus, type Property, type SyncRun } from "@/lib/api";
+import { api, fmt, propertyLabel, type Ga4Property, type GscStatus, type Property, type SyncRun } from "@/lib/api";
 
 // ---------- data status ----------
 
@@ -109,13 +109,25 @@ export function IntegrationsView() {
       {result === "error" && <Banner tone="error">Couldn&apos;t connect Google: {params.get("reason")}</Banner>}
       {error && <Banner tone="error">{error}</Banner>}
 
-      {status && <Clients properties={properties} nightly={status.nightly_sync_time} onChange={load} />}
+      {status && (
+        <Clients properties={properties} ga4={status.ga4_properties} nightly={status.nightly_sync_time} onChange={load} />
+      )}
       {status && <Accounts status={status} onChange={load} onError={setError} />}
     </div>
   );
 }
 
-function Clients({ properties, nightly, onChange }: { properties: Property[]; nightly: string | null; onChange: () => void }) {
+function Clients({
+  properties,
+  ga4,
+  nightly,
+  onChange,
+}: {
+  properties: Property[];
+  ga4: Ga4Property[];
+  nightly: string | null;
+  onChange: () => void;
+}) {
   const [filter, setFilter] = useState<StatusKey | "all">("all");
   const [search, setSearch] = useState("");
   const brands = useMemo(() => groupBrands(properties), [properties]);
@@ -195,7 +207,7 @@ function Clients({ properties, nightly, onChange }: { properties: Property[]; ni
       ) : (
         <ul className="divide-y divide-border border-t border-border @4xl:border-t-0">
           {shown.map((b) => (
-            <BrandRow key={b.key} brand={b} onChange={onChange} />
+            <BrandRow key={b.key} brand={b} ga4={ga4} onChange={onChange} />
           ))}
         </ul>
       )}
@@ -203,7 +215,7 @@ function Clients({ properties, nightly, onChange }: { properties: Property[]; ni
   );
 }
 
-function BrandRow({ brand, onChange }: { brand: Brand; onChange: () => void }) {
+function BrandRow({ brand, ga4, onChange }: { brand: Brand; ga4: Ga4Property[]; onChange: () => void }) {
   const [open, setOpen] = useState(false);
   const { main } = brand;
   const sync = useSync(main, onChange);
@@ -237,6 +249,7 @@ function BrandRow({ brand, onChange }: { brand: Brand; onChange: () => void }) {
               </button>
             )}
           </div>
+          {ga4.length > 0 && <Ga4Select brand={brand} ga4={ga4} onChange={onChange} />}
         </div>
 
         <SearchData property={main} status={s} run={sync.run} />
@@ -265,6 +278,65 @@ function BrandRow({ brand, onChange }: { brand: Brand; onChange: () => void }) {
         </ul>
       )}
     </li>
+  );
+}
+
+/** The brand's GA4 property: matched by website address, or picked by hand for every property of the brand. */
+function Ga4Select({ brand, ga4, onChange }: { brand: Brand; ga4: Ga4Property[]; onChange: () => void }) {
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { main } = brand;
+  const linked = ga4.find((g) => g.id === main.ga4_property_id);
+  const value = main.ga4_manual ? String(main.ga4_property_id ?? "none") : "auto";
+  const accounts = [...new Set(ga4.map((g) => g.account_name))];
+
+  async function choose(v: string) {
+    setSaving(true);
+    setError(null);
+    const link = v === "auto" ? { auto: true as const } : { ga4_property_id: v === "none" ? null : Number(v) };
+    try {
+      for (const p of brand.properties) await api.setGa4(p.id, link);
+      onChange();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="mt-1.5 pl-[18px] text-xs">
+      <label className="flex items-center gap-1.5">
+        <span className="text-muted">GA4</span>
+        <select
+          value={value}
+          onChange={(e) => choose(e.target.value)}
+          disabled={saving}
+          title={linked ? `${linked.display_name} · ${linked.website_url ?? "no website"} (${linked.property})` : undefined}
+          className={`max-w-[16rem] min-w-0 truncate rounded-md border border-border bg-surface px-1.5 py-0.5 disabled:opacity-50 ${
+            linked ? "" : "text-muted"
+          }`}
+        >
+          <option value="auto">
+            {main.ga4_manual ? "Match automatically" : linked ? `${linked.display_name} (auto)` : "No match found (auto)"}
+          </option>
+          <option value="none">No GA4 property</option>
+          {accounts.map((a) => (
+            <optgroup key={a} label={a}>
+              {ga4
+                .filter((g) => g.account_name === a)
+                .map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.display_name}
+                    {g.website_url ? ` · ${g.website_url.replace(/^https?:\/\//, "")}` : ""}
+                  </option>
+                ))}
+            </optgroup>
+          ))}
+        </select>
+      </label>
+      {error && <p className="mt-0.5 text-negative">{error}</p>}
+    </div>
   );
 }
 
@@ -350,6 +422,7 @@ function PropertyRow({ property, isMain, onChange }: { property: Property; isMai
 // ---------- connected accounts ----------
 
 function Accounts({ status, onChange, onError }: { status: GscStatus; onChange: () => void; onError: (e: string) => void }) {
+  const [refreshing, setRefreshing] = useState<number | null>(null);
   return (
     <Card>
       <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
@@ -401,12 +474,16 @@ function Accounts({ status, onChange, onError }: { status: GscStatus; onChange: 
           <div className="flex gap-2">
             <Button
               variant="secondary"
+              disabled={refreshing !== null}
               onClick={async () => {
+                setRefreshing(conn.id);
                 await api.refreshProperties(conn.id).catch((e) => onError(e.message));
+                setRefreshing(null);
                 onChange();
               }}
             >
-              Refresh client list
+              {/* GA4 lists every property's website: ~30 s for dozens of properties */}
+              {refreshing === conn.id ? "Refreshing… (up to a minute)" : "Refresh client list"}
             </Button>
             <Button
               variant="danger"

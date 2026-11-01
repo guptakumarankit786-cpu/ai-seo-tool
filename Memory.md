@@ -8,7 +8,16 @@ Decisions and learned facts, newest first. Add an entry whenever something is de
 - Order agreed: **nightly sync → GA4 → AI traffic report**.
 - Nightly sync: "Latest days" for clients that **already have data**; first 16-month syncs stay manual. The user asked for it, which lifts the "no automatic runs" rule for this case only. It needs this computer awake with Docker running.
 - GA4: organic landing pages + revenue joined with Search Console first, then the full all-channel dashboard.
+- GA4 ↔ client matching (user approved): same website host; several candidates → most sessions in the last 28 days, newest on a tie; a hand-picked link is kept. Picked per brand on the Integrations row.
 - "AI overview report" = **AI traffic from GA4** (visits from ChatGPT, Perplexity, Gemini…), not Google's AI Overviews in search results. Free, no paid SERP API.
+
+**Facts learned**
+- GA4 needs two APIs enabled in the app's Cloud project: **Analytics Admin API** (list properties, streams) and **Analytics Data API** (reports).
+- The agency account sees ~60 GA4 properties in ~40 accounts. Many sites have **2–3 GA4 properties** (old / new, Shopify / site, a chat-widget property on the same domain); some have no web stream or a stream URL without a scheme. Auto-matching linked 34 of 40 Search Console properties; the rest have no GA4 property with that website.
+- Listing GA4 properties + streams takes ~30 s (one streams call per property); a `runReport` costs ~3 of 200k daily tokens.
+- Organic landing pages in GA4 include `?variant=` and ad parameters — normalise before joining with Search Console pages.
+- GA4 can count purchases while revenue is 0 (store not sending order values) → show "revenue not tracked", not ₹0. Key events can exceed sessions.
+- GA4 history starts when the property was created — not limited to 16 months like Search Console.
 
 ## 2026-10-27
 

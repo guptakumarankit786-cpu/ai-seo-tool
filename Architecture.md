@@ -9,6 +9,7 @@ _Last updated: 2026-10-27_
                                                      │
                                                      ├─► Google OAuth 2.0
                                                      ├─► Search Console API (sites, searchAnalytics, sitemaps)
+                                                     ├─► GA4 Admin API (accountSummaries, dataStreams) + Data API (runReport)
                                                      ├─► URL Inspection API
                                                      └─► Client sitemaps (HTTP)
 ```
@@ -32,7 +33,8 @@ backend/app/
   crypto.py            Fernet encrypt/decrypt for OAuth tokens
   models.py            all tables
   gsc/
-    google_api.py      thin wrappers: OAuth, sites, searchAnalytics, sitemaps, URL Inspection
+    google_api.py      thin wrappers: OAuth, sites, searchAnalytics, sitemaps, URL Inspection, GA4 properties + sessions
+    ga4.py             GA4 property list per connection + matching each Search Console site to one
     router.py          /api/gsc/... connections, OAuth, sync, performance reports
     sync.py            property discovery + performance sync job
     nightly.py         nightly "Latest days" sync loop for properties with data
@@ -57,7 +59,8 @@ backend/app/
 |---|---|
 | `oauth_states` | Short-lived CSRF state for the OAuth redirect (10 min, single use). |
 | `google_connections` | Connected Google account; **encrypted** refresh + access tokens. |
-| `gsc_properties` | Search Console properties per connection; `brand_terms` (text[], null = use domain suggestion); `competitor_terms` (text[]). |
+| `gsc_properties` | Search Console properties per connection; `brand_terms` (text[], null = use domain suggestion); `competitor_terms` (text[]); `ga4_property_id` (linked GA4 property, `SET NULL` on delete) + `ga4_manual` (picked by the user). |
+| `ga4_properties` | GA4 properties per connection: `property` ("properties/123"), name, account, web stream `website_url`. |
 | `gsc_sync_runs` | Performance sync jobs (status, range, rows, chunk progress). |
 | `gsc_daily_metrics` | Per-day totals (PK property+date). |
 | `gsc_query_metrics`, `gsc_page_metrics` | Per-day per-query / per-page metrics; queries carry generated `query_norm`. |
@@ -80,6 +83,8 @@ Deleting a connection cascades to everything below it. Schema changes go through
 **OAuth connect** — `GET /api/gsc/oauth/start` stores a random state and redirects to Google (offline access, `webmasters.readonly`). Callback verifies state, exchanges the code, rejects grants without Search Console scope, encrypts tokens, fetches the email, discovers properties, redirects to `/integrations`.
 
 **Performance sync** — `POST /properties/{id}/sync` with `{"mode": "range", "days": 90|180|486}` or `{"mode": "latest"}` creates a run and returns 202. The range ends 3 days ago (Google data lag); `latest` starts 3 days before the newest stored day (Google may revise recent days). A background task splits the range into **30-day chunks, newest first**; for each chunk it pulls `date`, `date+query`, `date+page` (paged by 25k rows), **replaces** that chunk and commits, updating `chunks_done/chunks_total`. An interrupted run keeps finished chunks; re-running replaces them (idempotent). Full 16 months on a large site: ~2.8M rows in ~12 min.
+
+**GA4 link** — the OAuth callback and `POST /connections/{id}/refresh-properties` also call `ga4.refresh_properties` when the connection granted `analytics.readonly`: `accountSummaries` (paged) + one `dataStreams` call per property (8 threads; ~30 s for 60 properties) mirror `ga4_properties`, then `match_all` links every non-manual Search Console property by host (`site_host`: scheme, `www.`, path removed). Several candidates → `runReport` sessions for the last 28 days, highest wins, newest property id on a tie (unreadable = −1). `PUT /properties/{id}/ga4` with `{"ga4_property_id": n|null}` sets a manual link, `{"auto": true}` re-matches just that property. `/status` returns `ga4_properties` and each property's link.
 
 **Clients list** — `GET /api/gsc/status` returns every property with its data range, latest sync run and indexing counts (`pages_inspected`, `last_inspected_at`, `export_uploaded_at` of the newest overview export). The frontend groups properties into brands by host (scheme, `www.` and path removed) and derives the status: data ending ≤ 1 day after the expected newest day (today − 3) is up to date.
 
@@ -150,4 +155,4 @@ Pages are thin server components wrapping client components in `<Suspense>` (req
 ```bash
 docker compose exec backend python -m pytest -q
 ```
-247 tests: OAuth, encryption, sync, reports maths, inspection discovery/quota/ordering, export parsing, advice, brand matching/segments, chunked/latest sync, comparisons, keyword types/filters/cache, striking distance / cannibalisation / live cache, seasonal / spikes / competitors, low-CTR pages, endpoints. Frontend: typecheck + lint; verified manually in the browser.
+260 tests: OAuth, encryption, sync, reports maths, inspection discovery/quota/ordering, export parsing, advice, brand matching/segments, chunked/latest sync, comparisons, keyword types/filters/cache, striking distance / cannibalisation / live cache, seasonal / spikes / competitors, low-CTR pages, nightly sync, GA4 matching, endpoints. Frontend: typecheck + lint; verified manually in the browser.

@@ -71,6 +71,8 @@ class FakeGoogle:
         self.revoked: list[str] = []
         self.fail_on: str | None = None  # dimension name that should raise
         self.calls: list[tuple] = []
+        self.ga4: list[dict] = []  # {property, name, account, website_url}
+        self.ga4_sessions: dict[str, int] = {}
 
     def search_analytics(self, token, site_url, start, end, dimensions):
         self.calls.append((site_url, start, end, tuple(dimensions)))
@@ -109,6 +111,8 @@ def fake_google(monkeypatch):
     monkeypatch.setattr(google_api, "exchange_code", lambda code: dict(fake.token_response))
     monkeypatch.setattr(google_api, "fetch_email", lambda token: fake.email)
     monkeypatch.setattr(google_api, "revoke", lambda token: fake.revoked.append(token))
+    monkeypatch.setattr(google_api, "list_ga4_properties", lambda token: [dict(p) for p in fake.ga4])
+    monkeypatch.setattr(google_api, "ga4_sessions", lambda token, name: fake.ga4_sessions.get(name, 0))
     return fake
 
 

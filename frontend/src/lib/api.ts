@@ -24,6 +24,16 @@ export type Property = {
   pages_inspected: number;
   last_inspected_at: string | null;
   export_uploaded_at: string | null;
+  ga4_property_id: number | null; // linked GA4 property (see GscStatus.ga4_properties)
+  ga4_manual: boolean; // picked by the user; otherwise matched by website address
+};
+
+export type Ga4Property = {
+  id: number;
+  property: string; // "properties/123"
+  display_name: string;
+  account_name: string;
+  website_url: string | null;
 };
 
 export type SyncRequest = { mode: "range"; days: number } | { mode: "latest" };
@@ -64,6 +74,7 @@ export type GscStatus = {
   configured: boolean;
   nightly_sync_time: string | null; // "02:00" local; null when off
   connections: Connection[];
+  ga4_properties: Ga4Property[];
 };
 
 export type Totals = {
@@ -507,6 +518,9 @@ export const api = {
       `/api/gsc/properties/${id}/queries?${qs(r, { limit, segment })}`,
     ),
   brandTerms: (id: number) => request<BrandTerms>(`/api/gsc/properties/${id}/brand-terms`),
+  /** Link a GA4 property (null = none) or go back to automatic matching. */
+  setGa4: (id: number, link: { auto: true } | { ga4_property_id: number | null }) =>
+    request<Property>(`/api/gsc/properties/${id}/ga4`, { method: "PUT", body: JSON.stringify(link) }),
   setBrandTerms: (id: number, terms: string[] | null) =>
     request<BrandTerms>(`/api/gsc/properties/${id}/brand-terms`, {
       method: "PUT",
