@@ -21,7 +21,9 @@ SCOPES = [
     "openid",
     "https://www.googleapis.com/auth/userinfo.email",
     "https://www.googleapis.com/auth/webmasters.readonly",
+    "https://www.googleapis.com/auth/analytics.readonly",  # GA4; optional — Search Console works without it
 ]
+ANALYTICS_SCOPE = "https://www.googleapis.com/auth/analytics.readonly"
 
 # GSC returns at most 25k rows per request; page through with startRow.
 ROW_LIMIT = 25_000

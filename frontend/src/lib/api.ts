@@ -56,6 +56,7 @@ export type Connection = {
   id: number;
   email: string;
   created_at: string;
+  analytics: boolean; // read-only GA4 access granted
   properties: Property[];
 };
 

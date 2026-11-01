@@ -34,6 +34,7 @@ class TestStart:
         assert params["access_type"] == "offline"
         assert params["prompt"] == "consent"
         assert "https://www.googleapis.com/auth/webmasters.readonly" in params["scope"].split()
+        assert "https://www.googleapis.com/auth/analytics.readonly" in params["scope"].split()
         assert params["redirect_uri"] == "http://localhost:8000/api/gsc/oauth/callback"
         assert db.get(OAuthState, params["state"]) is not None
 
@@ -110,6 +111,12 @@ class TestStatus:
         assert body["configured"] is True
         assert body["connections"][0]["email"] == "owner@example.com"
         assert body["connections"][0]["properties"][0]["site_url"] == "sc-domain:example.com"
+        assert body["connections"][0]["analytics"] is False  # connected before GA4: needs to reconnect
+
+    def test_analytics_flag_follows_granted_scopes(self, client, db, prop):
+        prop.connection.scopes = "webmasters.readonly https://www.googleapis.com/auth/analytics.readonly"
+        db.commit()
+        assert client.get("/api/gsc/status").json()["connections"][0]["analytics"] is True
 
 
 def test_encrypt_round_trips_and_hides_plaintext():

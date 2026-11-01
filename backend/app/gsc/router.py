@@ -65,6 +65,7 @@ class ConnectionOut(BaseModel):
     id: int
     email: str
     created_at: datetime
+    analytics: bool  # read-only GA4 access granted (accounts connected before GA4 need to reconnect)
     properties: list[PropertyOut]
 
 
@@ -305,6 +306,7 @@ def status(db: Session = Depends(get_db)):
         connections=[
             ConnectionOut(
                 id=c.id,
+                analytics=google_api.ANALYTICS_SCOPE in c.scopes.split(),
                 email=c.email,
                 created_at=c.created_at,
                 properties=[

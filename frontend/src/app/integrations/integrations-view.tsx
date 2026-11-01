@@ -356,8 +356,10 @@ function Accounts({ status, onChange, onError }: { status: GscStatus; onChange: 
         <div className="flex items-start gap-3">
           <GscIcon />
           <div>
-            <h2 className="text-sm font-medium">Google Search Console</h2>
-            <p className="text-sm text-muted">Read-only access to clicks, impressions, rankings and indexing.</p>
+            <h2 className="text-sm font-medium">Google Search Console &amp; Analytics</h2>
+            <p className="text-sm text-muted">
+              Read-only access to clicks, impressions, rankings and indexing, plus GA4 sessions, conversions and revenue.
+            </p>
           </div>
         </div>
         <a
@@ -387,7 +389,14 @@ function Accounts({ status, onChange, onError }: { status: GscStatus; onChange: 
         >
           <div className="text-sm">
             <span className="font-medium">{conn.email}</span>
-            <span className="text-muted"> · {conn.properties.length} properties</span>
+            <span className="text-muted"> · {conn.properties.length} properties · </span>
+            {conn.analytics ? (
+              <span className="text-positive">GA4 access granted</span>
+            ) : (
+              <a href={api.connectUrl} className="text-warning hover:underline" title="Sign in again and allow Google Analytics (read-only)">
+                No GA4 access — reconnect to add it
+              </a>
+            )}
           </div>
           <div className="flex gap-2">
             <Button
