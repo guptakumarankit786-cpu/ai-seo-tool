@@ -37,8 +37,12 @@ _Last updated: 2026-10-27. Raw ideas live in [docs/ideas.md](docs/ideas.md); onl
 ## 🔜 Next — GSC phase (approved 2026-10-15, see docs/ideas.md)
 - [ ] Pick the next feature from the backlog / ideas
 
-## 📋 Backlog (approved ideas, not started)
-- [ ] Automatic scheduled syncs from Search Console (ideas #3)
+## 📋 Backlog (approved ideas, not started) — in this order
+- [ ] Nightly "Latest days" sync for clients with data (ideas #3)
+- [ ] GA4: connect + match properties to clients (ideas #14a)
+- [ ] GA4: organic landing pages with sessions, conversions, revenue next to Search Console (#14b)
+- [ ] GA4: AI traffic report — visits from ChatGPT / Perplexity / Gemini… (#14d)
+- [ ] GA4: full dashboard, all channels (#14c)
 
 ## 🛠 Tech debt
 - [ ] Move background jobs (sync, inspection) out of the API process into a worker — today a running job blocks backend auto-reload and dies on restart

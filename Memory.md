@@ -2,6 +2,14 @@
 
 Decisions and learned facts, newest first. Add an entry whenever something is decided or discovered that isn't obvious from the code. **No client names or client data** — the repo is public.
 
+## 2026-11-01
+
+**Decisions**
+- Order agreed: **nightly sync → GA4 → AI traffic report**.
+- Nightly sync: "Latest days" for clients that **already have data**; first 16-month syncs stay manual. The user asked for it, which lifts the "no automatic runs" rule for this case only. It needs this computer awake with Docker running.
+- GA4: organic landing pages + revenue joined with Search Console first, then the full all-channel dashboard.
+- "AI overview report" = **AI traffic from GA4** (visits from ChatGPT, Perplexity, Gemini…), not Google's AI Overviews in search results. Free, no paid SERP API.
+
 ## 2026-10-27
 
 **Decisions**

@@ -10,7 +10,7 @@ Ideas captured for later. Nothing here is implemented unless marked ✅. Status:
 |---|------|--------|
 | 1 | **Manual sync** — user clicks "Sync" per property; pulls the last 90 days (daily totals, queries, pages). | ✅ Built |
 | 2 | **16 months of data** — choose 3 / 6 / 16 months; first run fetches full history, later runs only fetch new days; 90-day "vs previous period" and year-over-year work. | ✅ Built 2026-10-15 |
-| 3 | **Automatic pulls** — the app syncs on a schedule (e.g. daily, last few days only), building history beyond 16 months with no manual clicks. | 💡 Later |
+| 3 | **Automatic pulls** — the app syncs on a schedule (e.g. daily, last few days only), building history beyond 16 months with no manual clicks. **Decided 2026-11-01:** nightly "Latest days" sync for clients that already have data (new clients still get their first sync by hand); runs only while this computer and Docker are on. | 🎯 Approved — next |
 
 ## Performance — keyword views (Top queries)
 
@@ -48,6 +48,17 @@ Agreed 2026-10-27: a **Pages** tab like the Keywords tab, built in parts. All sy
 | 13d | **Content decay** (part 3) | Pages (mostly blogs) whose clicks fell steadily for 3+ months — refresh candidates, with the likely cause. | ✅ Built 2026-10-27 |
 | 13e | Pages vs indexing | Sitemap pages with no impressions; pages with impressions that Google says aren't indexed (clients with inspections only). | 💡 Later |
 | 13f | **Service-brand support** | Today's clients are mostly D2C / e-commerce. Add features for **service brands** too: their own page types (service pages, location pages, case studies, contact / lead pages) and the views that matter for them (e.g. local / "near me" keywords, lead pages). Page types should become configurable per client rather than Shopify-only. _Added 2026-10-27._ | 💡 Later |
+
+## Google Analytics 4
+
+Decided 2026-11-01 (user chose "both, organic first"). Free Google APIs (Admin API to list properties, Data API for reports), same Google sign-in plus the read-only Analytics scope. Probe the real API on an approved client before building.
+
+| # | Idea | Status |
+|---|------|--------|
+| 14a | **Connect GA4** — add the read-only Analytics permission, list GA4 properties, match each to its Search Console site by website address (editable). | 🎯 Approved |
+| 14b | **Organic pages + revenue** — organic sessions, conversions and revenue per landing page next to Search Console clicks; lets Low CTR / decay / striking distance be ranked by money. | 🎯 Approved |
+| 14c | **Full GA4 dashboard** — all channels: sessions, users, conversions, revenue by channel, landing page, device. | 🎯 Approved (after 14b) |
+| 14d | **AI traffic report** — visits, conversions and revenue from AI assistants (ChatGPT, Perplexity, Gemini, Copilot, Claude…) using GA4's source / referrer data; which pages they land on and the trend. User: "this will take it from GA4". | 🎯 Approved (after GA4 connect) |
 
 ## Insights & AI
 
