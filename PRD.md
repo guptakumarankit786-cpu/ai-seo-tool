@@ -115,6 +115,13 @@ Shopping listing URLs are never new, lost, low CTR or striking distance (Google 
 
 On real data (large Shopify store, 15 months): 50 decaying pages, 30 of them blogs; most often ranking dropped. Seasonal pages can appear too — true seasonality needs more than a year of stored history.
 
+### 4.3c GA4 and AI traffic tabs ✅
+Two tabs per client after Indexing, read live from the client's linked GA4 property (cached 1 h) and driven by the same date bar. GA4 isn't limited to stored Search Console history, so the comparison is always there. Without a GA4 link they say so and point to Integrations.
+
+- **GA4** — every channel: sessions, users, engagement rate, key events, orders, revenue (GA4's own totals, with change); sessions per day (comparison dashed); channels (sessions, change, engagement, orders, revenue — each row equals GA4's figure for that channel; rows don't add up exactly to the total because GA4 estimates session counts); devices; top 100 landing pages. Warns when 20%+ of sessions are "Unassigned" (a tracking setup problem).
+- **AI traffic** — visits from AI assistants: GA4's "AI Assistant" channel plus known assistant sources GA4 files elsewhere (chatgpt.com, gemini, perplexity, claude.ai, copilot, deepseek, grok, meta.ai, mistral…), named per assistant. KPIs: AI sessions, share of all sessions, orders, key events, revenue with change; AI sessions per day; by assistant; the pages AI visitors land on (main assistant, sessions now / before, orders, revenue). **ChatGPT ads** (`cgpt_…` sources, paid) are listed apart and left out of the totals.
+- Shopify's custom-pixel sandbox URLs (`/web-pixels@…/sandbox/modern/<path>`) are folded into the real page everywhere GA4 pages are shown (also the Pages tab).
+
 ### 4.4 Indexing — "Why pages aren't indexed" ✅
 Google offers **no API** for the Page Indexing report, so there are two sources:
 

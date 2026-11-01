@@ -47,6 +47,8 @@ docker compose exec backend python -m pytest -q
 | Indexing — "worth fixing vs. safe to ignore" advice per reason | ✅ |
 | Google Analytics 4: read-only access, GA4 property matched to each client by website or name (editable) | ✅ |
 | GA4 revenue per page: Google organic sessions, key events, orders and revenue on the Pages tab and page detail | ✅ |
+| GA4 tab: every channel — sessions, users, engagement, orders, revenue, channels, devices, landing pages | ✅ |
+| AI traffic tab: visits, orders and revenue from ChatGPT, Gemini, Perplexity, Claude, Copilot… | ✅ |
 
 ## Branches
 

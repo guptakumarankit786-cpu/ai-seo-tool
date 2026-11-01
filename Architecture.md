@@ -52,6 +52,7 @@ backend/app/
     opportunities_router.py /api/gsc/properties/{id}/opportunities/{striking-distance,cannibalisation}
     pages.py           page types from URL, per-page flags, type totals (also backs Top pages / Low CTR)
     pages_router.py    /api/gsc/properties/{id}/page-report, /page-detail, /page-decay
+    ga4_router.py      /api/gsc/properties/{id}/ga4-overview, /ai-traffic
 ```
 
 ## 3. Data model
@@ -87,7 +88,11 @@ Deleting a connection cascades to everything below it. Schema changes go through
 
 **GA4 link** — the OAuth callback and `POST /connections/{id}/refresh-properties` also call `ga4.refresh_properties` when the connection granted `analytics.readonly`: `accountSummaries` (paged) + one `dataStreams` call per property (8 threads; ~30 s for 60 properties) mirror `ga4_properties`, then `match_all` links every non-manual Search Console property by host (`site_host`: scheme, `www.`, path removed). Several candidates → `runReport` sessions for the last 28 days, highest wins, newest property id on a tie (unreadable = −1). `PUT /properties/{id}/ga4` with `{"ga4_property_id": n|null}` sets a manual link, `{"auto": true}` re-matches just that property. No website match → `by_name`: GA4 properties whose normalised name + account name contain the site's normalised host, else its brand term (`brand.suggest_terms`, 3+ letters).
 
-**GA4 on pages** — `page-report` and `page-detail` call `ga4.organic_landing_pages` (one `runReport`: `hostName` × `landingPage`, metrics `sessions, keyEvents, ecommercePurchases, purchaseRevenue`, filter channel group = Organic Search AND source = google, `metricAggregations: TOTAL`, paged 100k rows; cached in-process for 1 h per GA4 property + range, so filters and sorting don't call GA4 again). `ga4.attach` joins by `page_key` (host without `www.`, unquoted path, no trailing slash) onto clean page rows; http/https duplicates get the numbers once. Site totals use GA4's TOTAL (sessions don't add up exactly across landing pages); `unmatched_sessions` = total − matched pages. A GA4 error returns `ga4_error` and the Search Console report still works. `/status` returns `ga4_properties` and each property's link.
+**GA4 on pages** — `page-report` and `page-detail` call `ga4.organic_landing_pages` (one `runReport`: `hostName` × `landingPage`, metrics `sessions, keyEvents, ecommercePurchases, purchaseRevenue`, filter channel group = Organic Search AND source = google, `metricAggregations: TOTAL`, paged 100k rows; cached in-process for 1 h per GA4 property + range, so filters and sorting don't call GA4 again). `ga4.attach` joins by `page_key` (host without `www.`, unquoted path, no trailing slash) onto clean page rows; http/https duplicates get the numbers once. Site totals use GA4's TOTAL (sessions don't add up exactly across landing pages); `unmatched_sessions` = total − matched pages. A GA4 error returns `ga4_error` and the Search Console report still works. `clean_path` strips Shopify's pixel-sandbox prefix (`/web-pixels@…/sandbox/modern`) so those sessions count for the real page.
+
+**GA4 tab** — `GET /properties/{id}/ga4-overview` (Period): `ga4.overview` makes 4 `runReport` calls (cached 1 h): `date` with both ranges + `metricAggregations: TOTAL` (window totals — users don't add up across days — and daily sessions), `sessionDefaultChannelGroup` with both ranges (channels: per-row values equal GA4's; their sum exceeds the total by ~1% as GA4 sessions are estimates), top 100 `hostName`×`landingPage` (body `limit` → no paging; pixel-sandbox copies merged), `deviceCategory`. `ga4_run_report` returns `range_totals` keyed by range name ("now" / "before").
+
+**AI traffic** — `GET /properties/{id}/ai-traffic`: one `runReport` (`date`×`sessionSource`×`hostName`×`landingPage`, both ranges) filtered to channel "AI Assistant" OR source matching `ga4.AI_SOURCES`, plus one all-sessions call for the share. `ga4.assistant()` names the source (first word match: chatgpt/openai → ChatGPT, gemini/bard → Gemini…, `cgpt_…` → ChatGPT ads, else Other AI); the router sums totals (ads excluded), per assistant, per day and per landing page. `/status` returns `ga4_properties` and each property's link.
 
 **Clients list** — `GET /api/gsc/status` returns every property with its data range, latest sync run and indexing counts (`pages_inspected`, `last_inspected_at`, `export_uploaded_at` of the newest overview export). The frontend groups properties into brands by host (scheme, `www.` and path removed) and derives the status: data ending ≤ 1 day after the expected newest day (today − 3) is up to date.
 
@@ -133,6 +138,9 @@ frontend/src/
   app/gsc/[propertyId]/pages/detail/ Page detail (?url=…): KPIs, chart, keywords, indexing
   app/gsc/[propertyId]/pages/decay-panel.tsx  Content decay view (month bars, cause + advice)
   app/gsc/[propertyId]/indexing/     Indexing (inspected / export, advice)
+  app/gsc/[propertyId]/ga4/          GA4 tab (all channels: KPIs, daily chart, channels, devices, landing pages)
+  app/gsc/[propertyId]/ai/           AI traffic tab (assistants, daily chart, landing pages)
+  components/ga4-ui.tsx              MetricCard (value + change), SessionsChart, change()
   components/ui.tsx                  Card, Button, Banner, Badge
   components/property-tabs.tsx       Performance | Keywords | Pages | Indexing tabs
   components/use-sync.ts             start + poll a sync
@@ -158,4 +166,4 @@ Pages are thin server components wrapping client components in `<Suspense>` (req
 ```bash
 docker compose exec backend python -m pytest -q
 ```
-267 tests: OAuth, encryption, sync, reports maths, inspection discovery/quota/ordering, export parsing, advice, brand matching/segments, chunked/latest sync, comparisons, keyword types/filters/cache, striking distance / cannibalisation / live cache, seasonal / spikes / competitors, low-CTR pages, nightly sync, GA4 matching, endpoints. Frontend: typecheck + lint; verified manually in the browser.
+286 tests: OAuth, encryption, sync, reports maths, inspection discovery/quota/ordering, export parsing, advice, brand matching/segments, chunked/latest sync, comparisons, keyword types/filters/cache, striking distance / cannibalisation / live cache, seasonal / spikes / competitors, low-CTR pages, nightly sync, GA4 matching / pages / overview / AI traffic, endpoints. Frontend: typecheck + lint; verified manually in the browser.

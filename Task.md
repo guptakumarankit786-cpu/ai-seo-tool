@@ -33,7 +33,10 @@ _Last updated: 2026-10-27. Raw ideas live in [docs/ideas.md](docs/ideas.md); onl
 - [x] GA4 link per client (ideas #14a): GA4 properties listed with their website, auto-matched by website (most 28-day sessions when several), editable select per client
 - [x] GA4 matching falls back to GA4 properties named after the site's domain or brand (GA4 naming differs from Search Console)
 - [x] GA4 revenue per page (ideas #14b): Google organic sessions, key events, orders, revenue on the Pages tab (sortable) and page detail; GA4 totals, unmatched-landing warning, "revenue not tracked"
-- [x] Backend test suite (267 tests)
+- [x] GA4 tab (ideas #14c): all channels — KPIs with change, sessions per day, channels, devices, top landing pages, Unassigned warning
+- [x] AI traffic tab (ideas #14d): AI Assistant channel + known assistant sources, by assistant, daily, landing pages, share of sessions; ChatGPT ads apart
+- [x] Shopify pixel-sandbox landing pages folded into the real page (GA4 pages, Pages tab)
+- [x] Backend test suite (286 tests)
 - [x] Project docs: PRD, Architecture, Rules, Design, Task, Memory
 - [x] First stable release **v0.1.0** (2026-10-26): `main` fast-forwarded to `test`, tagged; clean Docker rebuild + 194 tests + smoke test passed
 - [x] Release **v0.1.1** (2026-10-26): empty-Keywords-cache fix + Next.js 16.4.3 security upgrade
@@ -43,8 +46,6 @@ _Last updated: 2026-10-27. Raw ideas live in [docs/ideas.md](docs/ideas.md); onl
 - [ ] Pick the next feature from the backlog / ideas
 
 ## 📋 Backlog (approved ideas, not started) — in this order
-- [ ] GA4: AI traffic report — visits from ChatGPT / Perplexity / Gemini… (#14d)
-- [ ] GA4: full dashboard, all channels (#14c)
 
 ## 🛠 Tech debt
 - [ ] Move background jobs (sync, inspection) out of the API process into a worker — today a running job blocks backend auto-reload and dies on restart

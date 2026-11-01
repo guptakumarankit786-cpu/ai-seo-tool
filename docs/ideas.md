@@ -57,8 +57,8 @@ Decided 2026-11-01 (user chose "both, organic first"). Free Google APIs (Admin A
 |---|------|--------|
 | 14a | **Connect GA4** — add the read-only Analytics permission, list GA4 properties, match each to its Search Console site by website address (editable). | ✅ Built 2026-11-01 |
 | 14b | **Organic pages + revenue** — organic sessions, conversions and revenue per landing page next to Search Console clicks; lets Low CTR / decay / striking distance be ranked by money. | ✅ Built 2026-11-02 (Google organic; orders + key events + revenue) |
-| 14c | **Full GA4 dashboard** — all channels: sessions, users, conversions, revenue by channel, landing page, device. | 🎯 Approved (after 14b) |
-| 14d | **AI traffic report** — visits, conversions and revenue from AI assistants (ChatGPT, Perplexity, Gemini, Copilot, Claude…) using GA4's source / referrer data; which pages they land on and the trend. User: "this will take it from GA4". | 🎯 Approved (after GA4 connect) |
+| 14c | **Full GA4 dashboard** — all channels: sessions, users, conversions, revenue by channel, landing page, device. | ✅ Built 2026-11-02 (GA4 tab) |
+| 14d | **AI traffic report** — visits, conversions and revenue from AI assistants (ChatGPT, Perplexity, Gemini, Copilot, Claude…) using GA4's source / referrer data; which pages they land on and the trend. User: "this will take it from GA4". | ✅ Built 2026-11-02 (AI traffic tab) |
 
 ## Insights & AI
 

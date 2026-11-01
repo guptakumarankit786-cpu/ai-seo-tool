@@ -275,6 +275,57 @@ export type PageReport = {
   ga4_error: string | null;
 };
 
+export type Ga4Metrics = { sessions: number; key_events: number; orders: number; revenue: number };
+
+type AiSource = Ga4Metrics & { assistant: string; previous: Ga4Metrics | null };
+
+/** Visits from AI assistants (ChatGPT, Gemini, Perplexity…) from the client's GA4, for the shared period. */
+export type AiTraffic = {
+  linked: boolean;
+  ga4_name: string | null;
+  currency: string | null;
+  revenue_tracked: boolean;
+  start_date: string;
+  end_date: string;
+  compare: Compare;
+  compare_start: string | null;
+  compare_end: string | null;
+  totals: Ga4Metrics; // free AI visits; ChatGPT ads are in `ads`
+  previous: Ga4Metrics | null;
+  all_sessions: number;
+  previous_all_sessions: number | null;
+  assistants: AiSource[];
+  ads: AiSource | null;
+  daily: { date: string; sessions: number }[];
+  previous_daily: { date: string; sessions: number }[];
+  pages: (Ga4Metrics & { url: string; assistant: string; previous_sessions: number | null })[];
+  error: string | null;
+};
+
+export type Ga4Totals = Ga4Metrics & { users: number; engaged_sessions: number };
+
+/** The client's GA4 across every channel for the shared period. */
+export type Ga4Overview = {
+  linked: boolean;
+  ga4_name: string | null;
+  currency: string | null;
+  revenue_tracked: boolean;
+  start_date: string;
+  end_date: string;
+  compare: Compare;
+  compare_start: string | null;
+  compare_end: string | null;
+  totals: Ga4Totals;
+  previous: Ga4Totals | null;
+  channels: (Ga4Totals & { channel: string; previous_sessions: number | null })[];
+  daily: { date: string; sessions: number }[];
+  previous_daily: { date: string; sessions: number }[];
+  pages: (Ga4Totals & { url: string })[];
+  devices: (Ga4Totals & { device: string })[];
+  unassigned_share: number;
+  error: string | null;
+};
+
 export type PageKeyword = {
   query: string;
   brand: boolean;
@@ -565,6 +616,8 @@ export const api = {
     if (q.search.trim()) params.set("search", q.search.trim());
     return request<KeywordsResponse>(`/api/gsc/properties/${id}/keywords?${params}`);
   },
+  ga4Overview: (id: number, r: DateRange) => request<Ga4Overview>(`/api/gsc/properties/${id}/ga4-overview?${qs(r)}`),
+  aiTraffic: (id: number, r: DateRange) => request<AiTraffic>(`/api/gsc/properties/${id}/ai-traffic?${qs(r)}`),
   pageReport: (id: number, r: DateRange, q: PageQuery) => {
     const params = qs(r, {
       sort: q.sort,

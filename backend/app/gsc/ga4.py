@@ -9,6 +9,7 @@ the site's address the one with the most sessions in the last 28 days wins. A li
 by hand (ga4_manual) is never changed by matching.
 """
 
+import re
 import time
 from collections import defaultdict
 from datetime import date
@@ -107,9 +108,18 @@ def match_all(db: Session, property_id: int | None = None) -> None:
 # ---------- organic landing pages ----------
 
 
+# GA4 sent from Shopify's custom-pixel sandbox records "/web-pixels@…/sandbox/modern/<real path>".
+_PIXEL_PREFIX = re.compile(r"^/web-pixels@[^/]*/(?:custom/)?web-pixel-[^/]*/sandbox(?:/modern|/legacy)?")
+
+
+def clean_path(path: str) -> str:
+    """GA4 landing page with Shopify's pixel-sandbox prefix removed ('/web-pixels@…/sandbox/modern/x' -> '/x')."""
+    return _PIXEL_PREFIX.sub("", path) or "/" if path.startswith("/web-pixels@") else path
+
+
 def page_key(host: str, path: str) -> tuple[str, str]:
     """GA4 hostName + landingPage and a Search Console URL meet here: no www, decoded path, no trailing slash."""
-    return site_host(host), unquote(path).rstrip("/") or "/"
+    return site_host(host), unquote(clean_path(path)).rstrip("/") or "/"
 
 
 def organic_landing_pages(db: Session, prop: GscProperty, start: date, end: date) -> dict | None:
@@ -119,14 +129,27 @@ def organic_landing_pages(db: Session, prop: GscProperty, start: date, end: date
     if not prop.ga4_property_id:
         return None
     g = db.get(Ga4Property, prop.ga4_property_id)
-    key = (g.property, start, end)
+    return _cached(("pages", g.property, start, end), lambda: _landing_pages(db, g, start, end))
+
+
+def _cached(key: tuple, build):
     hit = _cache.get(key)
     if hit and time.monotonic() - hit[0] < CACHE_SECONDS:
         return hit[1]
+    out = build()
+    if len(_cache) > 50:
+        _cache.clear()
+    _cache[key] = (time.monotonic(), out)
+    return out
 
-    token = google_api.access_token_for(db, db.get(GoogleConnection, g.connection_id))
+
+def _token(db: Session, g: Ga4Property) -> str:
+    return google_api.access_token_for(db, db.get(GoogleConnection, g.connection_id))
+
+
+def _landing_pages(db: Session, g: Ga4Property, start: date, end: date) -> dict:
     report = google_api.ga4_run_report(
-        token,
+        _token(db, g),
         g.property,
         {
             "dateRanges": [{"startDate": start.isoformat(), "endDate": end.isoformat()}],
@@ -143,12 +166,7 @@ def organic_landing_pages(db: Session, prop: GscProperty, start: date, end: date
         values = [float(m["value"]) for m in r["metricValues"]]
         pages[k] = [a + b for a, b in zip(pages.get(k, [0.0] * len(METRICS)), values)]
     totals = report["totals"] or [sum(v[i] for v in pages.values()) for i in range(len(METRICS))]
-    out = {"name": g.display_name, "currency": report["currency"], "pages": pages, "totals": totals}
-
-    if len(_cache) > 50:
-        _cache.clear()
-    _cache[key] = (time.monotonic(), out)
-    return out
+    return {"name": g.display_name, "currency": report["currency"], "pages": pages, "totals": totals}
 
 
 def attach(rows: list[dict], report: dict) -> dict:
@@ -173,4 +191,161 @@ def attach(rows: list[dict], report: dict) -> dict:
         # Orders counted but no order value sent: show "not tracked", not 0.
         "revenue_tracked": not (totals[2] > 0 and totals[3] == 0),
         "unmatched_sessions": int(unmatched),
+    }
+
+
+# ---------- AI assistant traffic ----------
+
+# GA4's own "AI Assistant" channel catches most of it; these sources add visits GA4 files as
+# Unassigned / Referral / Organic (e.g. utm_source=chatgpt.com). "cgpt_…" is ChatGPT ads (paid).
+AI_SOURCES = (
+    r"(.*\.)?(chatgpt\.com|chat\.openai\.com|openai\.com|gemini\.google\.com|bard\.google\.com|perplexity\.ai"
+    r"|claude\.ai|copilot\.microsoft\.com|copilot\.com|chat\.deepseek\.com|deepseek\.com|grok\.com|meta\.ai"
+    r"|chat\.mistral\.ai)|chatgpt|gemini|perplexity|claude|copilot|deepseek|grok|cgpt_.*"
+)
+AI_FILTER = {
+    "orGroup": {
+        "expressions": [
+            {"filter": {"fieldName": "sessionDefaultChannelGroup", "stringFilter": {"value": "AI Assistant"}}},
+            {"filter": {"fieldName": "sessionSource", "stringFilter": {"matchType": "FULL_REGEXP", "value": AI_SOURCES, "caseSensitive": False}}},
+        ]
+    }
+}
+# Checked in order; the first word found in the source names the assistant.
+ASSISTANTS = (
+    ("chatgpt", "ChatGPT"), ("openai", "ChatGPT"), ("gemini", "Gemini"), ("bard", "Gemini"),
+    ("perplexity", "Perplexity"), ("claude", "Claude"), ("copilot", "Copilot"), ("deepseek", "DeepSeek"),
+    ("grok", "Grok"), ("meta.ai", "Meta AI"), ("mistral", "Mistral"),
+)
+ADS = "ChatGPT ads"
+
+
+def assistant(source: str) -> str:
+    """'chatgpt.com' -> 'ChatGPT'; 'cgpt_ads' -> 'ChatGPT ads'; other AI Assistant sources -> 'Other AI'."""
+    source = source.lower()
+    if source.startswith("cgpt_"):
+        return ADS
+    return next((name for word, name in ASSISTANTS if word in source), "Other AI")
+
+
+def _ranges(start: date, end: date, compare_start: date | None, compare_end: date | None) -> list[dict]:
+    ranges = [{"startDate": start.isoformat(), "endDate": end.isoformat(), "name": "now"}]
+    if compare_start:
+        ranges.append({"startDate": compare_start.isoformat(), "endDate": compare_end.isoformat(), "name": "before"})
+    return ranges
+
+
+def ai_traffic(db: Session, prop: GscProperty, start: date, end: date, compare_start: date | None, compare_end: date | None) -> dict | None:
+    """AI-assistant visits for the period (and comparison) from the site's linked GA4 property; None when not linked.
+
+    Rows: {window: "now"|"before", date, assistant, host, path, sessions, key_events, orders, revenue},
+    plus all-channel sessions per window for the AI share."""
+    if not prop.ga4_property_id:
+        return None
+    g = db.get(Ga4Property, prop.ga4_property_id)
+    return _cached(("ai", g.property, start, end, compare_start, compare_end), lambda: _ai(db, g, start, end, compare_start, compare_end))
+
+
+def _ai(db: Session, g: Ga4Property, start, end, compare_start, compare_end) -> dict:
+    token, ranges = _token(db, g), _ranges(start, end, compare_start, compare_end)
+    report = google_api.ga4_run_report(
+        token,
+        g.property,
+        {
+            "dateRanges": ranges,
+            "dimensions": [{"name": n} for n in ("date", "sessionSource", "hostName", "landingPage")],
+            "metrics": [{"name": m} for m in METRICS],
+            "dimensionFilter": AI_FILTER,
+        },
+    )
+    rows = []
+    for r in report["rows"]:
+        day, source, host, path, *rest = (d["value"] for d in r["dimensionValues"])
+        window = rest[0] if rest else "now"  # GA4 adds the range name as a last dimension with 2+ ranges
+        values = [float(m["value"]) for m in r["metricValues"]]
+        rows.append({
+            "window": window, "date": date(int(day[:4]), int(day[4:6]), int(day[6:])), "assistant": assistant(source),
+            "host": site_host(host), "path": clean_path(path), **dict(zip(FIELDS, values)),
+        })
+    everything = google_api.ga4_run_report(token, g.property, {"dateRanges": ranges, "metrics": [{"name": "sessions"}]})
+    all_sessions = {"now": 0, "before": 0}
+    for r in everything["rows"]:
+        name = r["dimensionValues"][0]["value"] if r.get("dimensionValues") else "now"
+        all_sessions[name] = int(float(r["metricValues"][0]["value"]))
+    return {"name": g.display_name, "currency": report["currency"], "rows": rows, "all_sessions": all_sessions}
+
+
+# ---------- GA4 overview (all channels) ----------
+
+OVERVIEW_METRICS = ("sessions", "totalUsers", "engagedSessions", "keyEvents", "ecommercePurchases", "purchaseRevenue")
+OVERVIEW_FIELDS = ("sessions", "users", "engaged_sessions", "key_events", "orders", "revenue")
+TOP_PAGES = 100
+
+
+def overview(db: Session, prop: GscProperty, start: date, end: date, compare_start: date | None, compare_end: date | None) -> dict | None:
+    """All-channel GA4 for the period: totals and daily sessions per window, channels, top landing pages, devices.
+    None when the site has no GA4 link."""
+    if not prop.ga4_property_id:
+        return None
+    g = db.get(Ga4Property, prop.ga4_property_id)
+    return _cached(("overview", g.property, start, end, compare_start, compare_end), lambda: _overview(db, g, start, end, compare_start, compare_end))
+
+
+def _values(row: dict, fields=OVERVIEW_FIELDS) -> dict:
+    return {f: float(m["value"]) for f, m in zip(fields, row["metricValues"])}
+
+
+def _merge_pages(rows: list[dict]) -> list[dict]:
+    """Landing pages with pixel-sandbox copies folded into the real page, most sessions first."""
+    merged: dict[tuple[str, str], dict] = {}
+    for r in rows:
+        key = (r["dimensionValues"][0]["value"], clean_path(r["dimensionValues"][1]["value"]))
+        values = _values(r)
+        if key in merged:
+            for f, v in values.items():
+                merged[key][f] += v
+        else:
+            merged[key] = {"host": key[0], "path": key[1], **values}
+    return sorted(merged.values(), key=lambda p: -p["sessions"])
+
+
+def _overview(db: Session, g: Ga4Property, start, end, compare_start, compare_end) -> dict:
+    token, ranges = _token(db, g), _ranges(start, end, compare_start, compare_end)
+    metrics = [{"name": m} for m in OVERVIEW_METRICS]
+    # Users don't add up across days or channels, so the window totals are GA4's own (TOTAL).
+    by_day = google_api.ga4_run_report(
+        token, g.property,
+        {"dateRanges": ranges, "dimensions": [{"name": "date"}], "metrics": metrics, "metricAggregations": ["TOTAL"]},
+    )
+    daily = []
+    for r in by_day["rows"]:
+        day, *rest = (d["value"] for d in r["dimensionValues"])
+        daily.append({"window": rest[0] if rest else "now", "date": date(int(day[:4]), int(day[4:6]), int(day[6:])), **_values(r)})
+    # A session crossing midnight counts on both days, so channels come from their own report.
+    by_channel = google_api.ga4_run_report(
+        token, g.property, {"dateRanges": ranges, "dimensions": [{"name": "sessionDefaultChannelGroup"}], "metrics": metrics},
+    )
+    channels = []
+    for r in by_channel["rows"]:
+        channel, *rest = (d["value"] for d in r["dimensionValues"])
+        channels.append({"window": rest[0] if rest else "now", "channel": channel, **_values(r)})
+    current = ranges[:1]
+    pages = google_api.ga4_run_report(
+        token, g.property,
+        {
+            "dateRanges": current, "dimensions": [{"name": "hostName"}, {"name": "landingPage"}], "metrics": metrics,
+            "orderBys": [{"metric": {"metricName": "sessions"}, "desc": True}], "limit": TOP_PAGES,
+        },
+    )
+    devices = google_api.ga4_run_report(
+        token, g.property, {"dateRanges": current, "dimensions": [{"name": "deviceCategory"}], "metrics": metrics},
+    )
+    return {
+        "name": g.display_name,
+        "currency": by_day["currency"],
+        "totals": {w: dict(zip(OVERVIEW_FIELDS, v)) for w, v in by_day["range_totals"].items()},
+        "daily": daily,
+        "channels": channels,
+        "pages": _merge_pages(pages["rows"]),
+        "devices": [{"device": r["dimensionValues"][0]["value"], **_values(r)} for r in devices["rows"]],
     }

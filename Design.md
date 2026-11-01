@@ -32,7 +32,7 @@ Use tokens through Tailwind (`bg-surface`, `text-muted`, `border-border`, `bg-ne
 ## 3. Layout
 - Left sidebar (`md:w-56`) with app name + nav; becomes a top bar on mobile.
 - Content max width: `max-w-6xl` (Integrations and client pages). Spacing `space-y-6` between sections.
-- Client pages: back link → title + property badge → **Performance | Keywords | Pages | Indexing** tabs → content.
+- Client pages: back link → title + property badge → **Performance | Keywords | Pages | Indexing | GA4 | AI traffic** tabs → content.
 
 ## 4. Components (`frontend/src/components/ui.tsx`)
 | Component | Notes |
@@ -68,6 +68,9 @@ Use tokens through Tailwind (`bg-surface`, `text-muted`, `border-border`, `bg-ne
 | Page detail | back link → path as title, type + filter tags, "Open live page ↗" → range controls → 4 KPI cards (CTR card shows "typical x%") → chart → keywords table (brand dot, "+n other pages shown for this search", sortable) beside an Indexing card (Indexed / Not indexed pill, verdict badge, what to do, last crawled, in sitemap, canonical warning in `warning`, export lists). |
 | Decay item | path (→ page detail, ↗ live) with type tag + cause pill (Ranking dropped / Sudden drop `negative`, Fewer searches `accent`, Lower CTR `warning`, Mixed outlined) and a one-line explanation with numbers and what to do · clicks month bars (last 3 months in accent) · "1,163 → 281 −76%" with "clicks per 3 months · −294/month". Month ranges in prose use "Jul 2026", not "Jul 26". |
 | GA4 line (Pages table) | Above the pages table: "**GA4 · name** — Google organic: n sessions · n orders · n key events · ₹x revenue." (or "revenue not tracked (orders have no value in GA4)"); amber `warning` sentence when 5%+ of sessions have a landing page that isn't a real page. Without a link: "No GA4 property linked… Pick one on Integrations"; GA4 errors in `negative`. Columns Sessions, Key ev. (xl+), Orders, Revenue (lg+, sortable) after Pos.; "—" for Shopping rows and untracked revenue. |
+| GA4 tab | "GA4 · name" muted line; amber `warning` box when 20%+ sessions are Unassigned; 6 MetricCards (Sessions, Users, Engagement rate, Key events, Orders, Revenue / "Not tracked") in a 2 / 3 / 6-column grid; Sessions per day (SessionsChart, comparison dashed); Channels table beside a Devices card (share bar per device, orders · revenue); Top landing pages table (↗ live page). |
+| AI traffic tab | Muted definition line; 5 MetricCards (AI sessions, Share of all sessions "of n sessions", Orders, Key events, Revenue); AI sessions per day; "By assistant" table (Change green/red, "new"); ChatGPT ads row muted with "paid · not in the totals above"; "Pages AI visitors land on" (Mostly from, Sessions, Before, Orders, Revenue). |
+| MetricCard | Like the KPI card, for GA4 numbers: label, value, "+x% vs previous period" (green/red), optional muted hint. |
 | Page GA4 card | Page detail, under the KPI cards: "GA4 · Google organic visits landing here · name" with Sessions, Orders, Key events, Revenue (or "Not tracked"). |
 | Page row | path (links to page detail; ↗ opens the live page), type tag (outlined) + filter tags (accent-soft); CTR shows "typical x%" under Low CTR rows. |
 | Terms editor | chips + Edit → comma-separated input, Save / Cancel / Reset to suggestion. |

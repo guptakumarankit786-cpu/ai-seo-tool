@@ -11,6 +11,7 @@ from app.config import get_settings
 from app.db import SessionLocal
 from app.gsc.brand_router import router as gsc_brand_router
 from app.gsc import nightly
+from app.gsc.ga4_router import router as ga4_router
 from app.gsc.indexing_router import router as gsc_indexing_router
 from app.gsc.keywords_router import router as gsc_keywords_router
 from app.gsc.opportunities_router import router as gsc_opportunities_router
@@ -54,6 +55,7 @@ app.include_router(gsc_brand_router)
 app.include_router(gsc_keywords_router)
 app.include_router(gsc_opportunities_router)
 app.include_router(gsc_pages_router)
+app.include_router(ga4_router)
 
 
 @app.get("/api/health")

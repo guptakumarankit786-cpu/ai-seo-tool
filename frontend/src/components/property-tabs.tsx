@@ -5,6 +5,8 @@ const TABS = [
   { key: "keywords", label: "Keywords", path: "/keywords" },
   { key: "pages", label: "Pages", path: "/pages" },
   { key: "indexing", label: "Indexing", path: "/indexing" },
+  { key: "ga4", label: "GA4", path: "/ga4" },
+  { key: "ai", label: "AI traffic", path: "/ai" },
 ] as const;
 
 export function PropertyTabs({

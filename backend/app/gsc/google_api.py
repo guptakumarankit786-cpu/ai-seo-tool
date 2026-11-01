@@ -225,19 +225,28 @@ def ga4_sessions(access_token: str, property_name: str, days: int = 28) -> int:
 
 
 def ga4_run_report(access_token: str, property_name: str, body: dict) -> dict:
-    """GA4 runReport, paging through every row: {"rows": [...], "totals": [...] | None, "currency": "INR"}.
-    Totals come back only when the body asks for metricAggregations=["TOTAL"]."""
+    """GA4 runReport: {"rows": [...], "totals": [...] | None, "range_totals": {name: [...]}, "currency": "INR"}.
+    Pages through every row unless the body sets its own `limit`. Totals come back only when the body
+    asks for metricAggregations=["TOTAL"]; with 2+ date ranges there's one per range, keyed by its name."""
     rows: list[dict] = []
-    totals = None
-    offset, limit = 0, 100_000
+    range_totals: dict[str, list[float]] = {}
+    several = len(body.get("dateRanges", [])) > 1
+    offset, limit = 0, body.get("limit", 100_000)
     with httpx.Client(headers={"Authorization": f"Bearer {access_token}"}, timeout=120) as client:
         while True:
             resp = client.post(f"{GA4_DATA}/{property_name}:runReport", json={**body, "limit": limit, "offset": offset})
             _raise_for_status(resp)
             data = resp.json()
             rows.extend(data.get("rows", []))
-            if totals is None and data.get("totals"):
-                totals = [float(m["value"]) for m in data["totals"][0]["metricValues"]]
+            for t in data.get("totals", []) if not range_totals else []:
+                if t.get("metricValues"):
+                    name = t["dimensionValues"][-1]["value"] if several else "now"
+                    range_totals[name] = [float(m["value"]) for m in t["metricValues"]]
             offset += limit
-            if offset >= data.get("rowCount", 0):
-                return {"rows": rows, "totals": totals, "currency": data.get("metadata", {}).get("currencyCode")}
+            if "limit" in body or offset >= data.get("rowCount", 0):
+                return {
+                    "rows": rows,
+                    "totals": next(iter(range_totals.values()), None),
+                    "range_totals": range_totals,
+                    "currency": data.get("metadata", {}).get("currencyCode"),
+                }

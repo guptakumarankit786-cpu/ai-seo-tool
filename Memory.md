@@ -6,6 +6,8 @@ Decisions and learned facts, newest first. Add an entry whenever something is de
 
 **Decisions**
 - GA4 on pages (user chose): **Google organic only** (source = google, like-for-like with Search Console), show **both** orders (purchases) and key events plus revenue, on the **Pages tab + page detail** (not a separate tab). Read live from GA4, cached 1 h; no GA4 comparison yet.
+- **GA4 and AI traffic get their own client tabs** (user asked for GA4 data and an AI section in the tab bar), after Indexing, driven by the shared date bar. ChatGPT ads (paid) are shown apart from free AI visits and left out of AI totals (default chosen; the user hadn't answered).
+- AI visits = GA4's "AI Assistant" channel + a fixed list of assistant sources — not "any .ai domain" (real data had .ai shipping / marketing tools).
 - GA4 naming differs from Search Console (user asked to handle it): no website match → match by the site's domain, else brand, in the GA4 property / account name. Linked 37 of 40 sites, all 7 with data.
 
 **Facts learned**
@@ -13,6 +15,11 @@ Decisions and learned facts, newest first. Add an entry whenever something is de
 - On one large Shopify store **~47% of Google organic sessions land on `/web-pixels@…/sandbox/modern`** — GA4 sent from Shopify's custom-pixel sandbox records the sandbox URL, not the page. Orders and revenue still count in totals, so page numbers add up to less; shown as a warning.
 - GA4 sessions summed over landing pages exceed the real total (~0.5%); use `metricAggregations: TOTAL` for site totals — it matches GA4 exactly (orders, key events and revenue match either way).
 - Bing, DuckDuckGo, so.com etc. are ~3% of GA4 "Organic Search" on a large store.
+- GA4 already has an **"AI Assistant" default channel** (medium `ai-assistant`): ~94% of AI visits on real clients; the rest are chatgpt.com / gemini / perplexity sessions filed as Unassigned, Referral, even Organic Search. AI traffic is 0.1–0.8% of sessions, ~94% ChatGPT; it does bring orders.
+- Shopify pixel-sandbox landing pages keep the real path at the end (`/web-pixels@…/sandbox/modern/pages/x`) — stripping the prefix recovers the page.
+- GA4 session counts are estimates: per-channel (or per-page) rows add up to ~1–1.5% more than GA4's total. Show GA4's TOTAL for the site, per-row values as GA4 reports them.
+- On the large store 63% of all sessions are "Unassigned" in GA4 — a tracking setup issue; the GA4 tab warns above 20%.
+- Two pytest runs at once deadlock the shared test database (TRUNCATE locks) — run one at a time; stuck sessions can be cleared with `pg_terminate_backend` on `seo_tool_test`.
 - One client's key events were ~8× its sessions (misconfigured) and its revenue 0 with ~400 orders — key events and revenue need per-client sanity checks.
 
 ## 2026-11-01

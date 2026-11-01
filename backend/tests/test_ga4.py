@@ -198,3 +198,26 @@ def test_page_detail_has_the_page_ga4_numbers(client, linked_site, monkeypatch):
     body = client.get(f"/api/gsc/properties/{linked_site.id}/page-detail", params={"days": 7, "url": "https://example.com/"}).json()
     assert body["ga4_page"] == {"sessions": 60, "key_events": 3, "orders": 2, "revenue": 1500.5}
     assert body["ga4"]["currency"] == "INR"
+
+
+@pytest.mark.parametrize(
+    "path, clean",
+    [
+        ("/web-pixels@a1b2c3/custom/web-pixel-123@12/sandbox/modern/pages/sale", "/pages/sale"),
+        ("/web-pixels@d4e5f6/custom/web-pixel-123@12/sandbox/modern", "/"),
+        ("/products/a", "/products/a"),
+        ("(not set)", "(not set)"),
+    ],
+)
+def test_shopify_pixel_sandbox_prefix_is_removed(path, clean):
+    assert ga4.clean_path(path) == clean
+
+
+def test_pixel_sandbox_sessions_count_for_the_real_page(client, linked_site, analytics):
+    analytics.ga4_report = {"currency": "INR", "totals": [100, 0, 0, 0], "rows": [
+        ga_row("example.com", "/products/a", 60),
+        ga_row("example.com", "/web-pixels@abc/custom/web-pixel-1@12/sandbox/modern/products/a", 40),
+    ]}
+    body = client.get(f"/api/gsc/properties/{linked_site.id}/page-report", params={"days": 7}).json()
+    rows = {r["page"].removeprefix("https://example.com"): r for r in body["items"]}
+    assert rows["/products/a"]["sessions"] == 100 and body["ga4"]["unmatched_sessions"] == 0
