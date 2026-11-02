@@ -19,6 +19,7 @@ Decisions and learned facts, newest first. Add an entry whenever something is de
 - Shopify pixel-sandbox landing pages keep the real path at the end (`/web-pixels@…/sandbox/modern/pages/x`) — stripping the prefix recovers the page.
 - GA4 session counts are estimates: per-channel (or per-page) rows add up to ~1–1.5% more than GA4's total. Show GA4's TOTAL for the site, per-row values as GA4 reports them.
 - On the large store 63% of all sessions are "Unassigned" in GA4 — a tracking setup issue; the GA4 tab warns above 20%.
+- **A 16-month sync failed with 401** (2026-11-01): each month got one token for all three downloads, renewed only 2 min before expiry; with several syncs at once one month took 6+ min and the token expired mid-download. Now a token per download and a 10-minute margin. "No permission" (403) failures are real: the connected account lacks Search Console access to that site.
 - Two pytest runs at once deadlock the shared test database (TRUNCATE locks) — run one at a time; stuck sessions can be cleared with `pg_terminate_backend` on `seo_tool_test`.
 - One client's key events were ~8× its sessions (misconfigured) and its revenue 0 with ~400 orders — key events and revenue need per-client sanity checks.
 

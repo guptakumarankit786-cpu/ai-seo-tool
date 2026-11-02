@@ -107,13 +107,14 @@ def _replace_range(db: Session, model, property_id: int, start: date, end: date,
 
 def _sync_chunk(db: Session, prop: GscProperty, start: date, end: date) -> int:
     """Fetch and replace one date range. Returns rows written. Caller commits."""
-    token = google_api.access_token_for(db, prop.connection)  # refreshes during long runs
     written = 0
     for model, keys in (
         (GscDailyMetric, ["date"]),
         (GscQueryMetric, ["date", "query"]),
         (GscPageMetric, ["date", "page"]),
     ):
+        # A fresh token per download: one month of keywords alone can take minutes on a large site.
+        token = google_api.access_token_for(db, prop.connection)
         rows = _metric_rows(prop.id, google_api.search_analytics(token, prop.site_url, start, end, keys), keys)
         _replace_range(db, model, prop.id, start, end, rows)
         written += len(rows)

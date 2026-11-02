@@ -28,6 +28,10 @@ SCOPES = [
 ]
 ANALYTICS_SCOPE = "https://www.googleapis.com/auth/analytics.readonly"
 
+# A token this close to expiry is renewed first: one paged download (e.g. a month of keywords on a
+# large site, slower while other syncs run) can take several minutes and must not outlive its token.
+TOKEN_MARGIN = timedelta(minutes=10)
+
 # GSC returns at most 25k rows per request; page through with startRow.
 ROW_LIMIT = 25_000
 
@@ -96,7 +100,7 @@ def access_token_for(db: Session, conn: GoogleConnection) -> str:
     if (
         conn.access_token_enc
         and conn.access_token_expires_at
-        and conn.access_token_expires_at - timedelta(minutes=2) > now
+        and conn.access_token_expires_at - TOKEN_MARGIN > now
     ):
         return decrypt(conn.access_token_enc)
 

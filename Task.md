@@ -36,7 +36,8 @@ _Last updated: 2026-10-27. Raw ideas live in [docs/ideas.md](docs/ideas.md); onl
 - [x] GA4 tab (ideas #14c): all channels — KPIs with change, sessions per day, channels, devices, top landing pages, Unassigned warning
 - [x] AI traffic tab (ideas #14d): AI Assistant channel + known assistant sources, by assistant, daily, landing pages, share of sessions; ChatGPT ads apart
 - [x] Shopify pixel-sandbox landing pages folded into the real page (GA4 pages, Pages tab)
-- [x] Backend test suite (286 tests)
+- [x] Fix: a long sync failed with 401 when its token expired mid-month — fresh token per download, renewed 10 min before expiry
+- [x] Backend test suite (289 tests)
 - [x] Project docs: PRD, Architecture, Rules, Design, Task, Memory
 - [x] First stable release **v0.1.0** (2026-10-26): `main` fast-forwarded to `test`, tagged; clean Docker rebuild + 194 tests + smoke test passed
 - [x] Release **v0.1.1** (2026-10-26): empty-Keywords-cache fix + Next.js 16.4.3 security upgrade

@@ -1,10 +1,12 @@
 from datetime import UTC, datetime, timedelta
 from urllib.parse import parse_qs, urlparse
 
+import pytest
 from sqlalchemy import func, select
 
 from app.config import get_settings
 from app.crypto import decrypt, encrypt
+from app.gsc import google_api
 from app.models import GoogleConnection, GscProperty, OAuthState
 
 
@@ -123,3 +125,34 @@ def test_encrypt_round_trips_and_hides_plaintext():
     token = encrypt("secret-value")
     assert token != "secret-value"
     assert decrypt(token) == "secret-value"
+
+
+class TestAccessToken:
+    """Long downloads must not outlive their token (a sync failed with 401 mid-month)."""
+
+    @pytest.fixture
+    def refreshes(self, monkeypatch):
+        calls = []
+
+        class Resp:
+            is_error, status_code = False, 200
+
+            def json(self):
+                return {"access_token": f"new-{len(calls)}", "expires_in": 3600}
+
+        monkeypatch.setattr(google_api.httpx, "post", lambda *a, **k: calls.append(1) or Resp())
+        return calls
+
+    def _expiring_in(self, db, connection, minutes):
+        connection.access_token_enc = encrypt("old")
+        connection.access_token_expires_at = datetime.now(UTC) + timedelta(minutes=minutes)
+        db.commit()
+
+    def test_token_with_plenty_of_time_is_reused(self, db, connection, refreshes):
+        self._expiring_in(db, connection, 30)
+        assert google_api.access_token_for(db, connection) == "old" and not refreshes
+
+    def test_token_expiring_within_the_margin_is_renewed(self, db, connection, refreshes):
+        self._expiring_in(db, connection, 5)  # a multi-minute download would outlive it
+        assert google_api.access_token_for(db, connection) == "new-1"
+        assert connection.access_token_expires_at > datetime.now(UTC) + timedelta(minutes=55)

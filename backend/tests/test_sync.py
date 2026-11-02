@@ -2,8 +2,9 @@ from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import func, select
 
-from app.gsc import sync
+from app.gsc import google_api, sync
 from app.models import GscDailyMetric, GscPageMetric, GscProperty, GscQueryMetric, GscSyncRun
+from tests.conftest import days_ago
 
 
 def count(db, model, property_id):
@@ -108,3 +109,11 @@ class TestSyncEndpoint:
 
     def test_unknown_property_returns_404(self, client):
         assert client.post("/api/gsc/properties/999/sync", json={"days": 10}).status_code == 404
+
+
+def test_each_download_gets_its_own_token(db, prop, fake_google, monkeypatch):
+    """Daily, keyword and page downloads each ask for a token, so a slow month can't use an expired one."""
+    asked = []
+    monkeypatch.setattr(google_api, "access_token_for", lambda db, conn: asked.append(1) or "token")
+    sync._sync_chunk(db, prop, days_ago(5), days_ago(3))
+    assert len(asked) == 3
